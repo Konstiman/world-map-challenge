@@ -2,7 +2,7 @@ const MAP_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json';
 const STORAGE_KEY = 'name-the-countries';
 
 // Features that are shown but not part of the quiz. The quiz covers the 193 UN member states
-// plus Kosovo, Taiwan, Vatican, Western Sahara and Greenland.
+// plus Kosovo, Taiwan, Vatican and Greenland.
 const EXCLUDED = new Set([
   'Antarctica', 'Siachen Glacier', 'Ashmore and Cartier Is.', 'Indian Ocean Ter.',
   'Heard I. and McDonald Is.', 'Fr. S. Antarctic Lands', 'Br. Indian Ocean Ter.',
@@ -19,7 +19,7 @@ const EXCLUDED = new Set([
 ]);
 
 // Regions merged into the state they belong to (dissolving the shared border).
-const MERGES = [['N. Cyprus', 'Cyprus'], ['Somaliland', 'Somalia']];
+const MERGES = [['N. Cyprus', 'Cyprus'], ['Somaliland', 'Somalia'], ['W. Sahara', 'Morocco']];
 
 // Tuvalu is missing from the 50m data, so its main atolls are added as small hexagons: [lon, lat].
 const TUVALU_ATOLLS = [
@@ -102,6 +102,7 @@ let byKey = new Map();
 let guesses = new Map();     // key -> typed text
 let results = null;          // key -> 'correct' | 'wrong' (after evaluation)
 let selected = null;
+let focusOnSettle = false;   // selected via a jump: keep re-fitting it while the keyboard settles
 let zoomK = 1;
 let zoom = null;
 let homeTransform = d3.zoomIdentity;
@@ -267,6 +268,7 @@ function updateLabelSize() {
 
 function select(key, focus = false) {
   selected = key;
+  focusOnSettle = focus;
   if (key) {
     form.hidden = false;
     input.value = guesses.get(key) || '';
@@ -403,12 +405,13 @@ function tuvaluFeature() {
 }
 
 // Fits the map to the screen. In portrait, the initial view is zoomed so the map fills the available height.
+// The svg has no viewBox, so its units are CSS pixels and a height change (e.g. the on-screen keyboard
+// shrinking the page) never rescales the map.
 function layout() {
+  updateHeaderHeight();
   const W = svg.node().clientWidth, H = svg.node().clientHeight;
-  const top = header.offsetHeight;
+  const top = Math.max(0, header.getBoundingClientRect().bottom - svg.node().getBoundingClientRect().top);
   const bottom = footer.offsetHeight + 4;
-  document.documentElement.style.setProperty('--header-h', top + 'px');
-  svg.attr('viewBox', [0, 0, W, H]);
 
   const projection = d3.geoNaturalEarth1().fitExtent([[8, top + 8], [W - 8, H - bottom]], { type: 'Sphere' });
   const path = d3.geoPath(projection);
@@ -433,24 +436,35 @@ function layout() {
   // the name field or the on-screen keyboard.
   const slack = Math.max(120, H * 0.4);
   zoom
-    .extent([[0, 0], [W, H]])
+    .extent(() => [[0, 0], [svg.node().clientWidth, svg.node().clientHeight]])
     .scaleExtent([1, 300])
     .translateExtent([[x0 - 40, y0 - top - slack], [x1 + 40, y1 + bottom + slack]]);
   svg.call(zoom.transform, homeTransform);
   render();
 }
 
-// Screen area not covered by the header, name field or on-screen keyboard.
+function updateHeaderHeight() {
+  document.documentElement.style.setProperty('--header-h', header.offsetHeight + 'px');
+}
+
+// Area of the map (in map coordinates) not covered by the header, name field or on-screen keyboard.
 function visibleRect() {
   const vv = window.visualViewport;
-  const margin = 30;
+  const s = svg.node().getBoundingClientRect();
+  const margin = window.innerWidth <= 640 ? 16 : 30;
   const f = form.getBoundingClientRect();
-  const formOnTop = f.top < window.innerHeight / 2;
+  const formOnTop = !form.hidden && f.top < window.innerHeight / 2;
+  const top = Math.max(s.top, header.getBoundingClientRect().bottom, formOnTop ? f.bottom : -Infinity);
+  const bottom = Math.min(
+    s.bottom,
+    !form.hidden && !formOnTop ? f.top : Infinity,
+    vv ? vv.offsetTop + vv.height : Infinity,
+  );
   return {
     x0: margin,
-    x1: window.innerWidth - margin,
-    y0: (formOnTop ? f.bottom : header.getBoundingClientRect().bottom) + margin,
-    y1: Math.min(formOnTop ? Infinity : f.top, vv ? vv.offsetTop + vv.height : window.innerHeight) - margin,
+    x1: s.width - margin,
+    y0: top - s.top + margin,
+    y1: bottom - s.top - margin,
   };
 }
 
@@ -536,7 +550,8 @@ async function init() {
     .clickDistance(6)
     // Plain interpolation: d3's default zooms out mid-flight on long pans, which sticks if a new jump interrupts it.
     .interpolate(d3.interpolate)
-    .on('zoom', ({ transform }) => {
+    .on('zoom', ({ transform, sourceEvent }) => {
+      if (sourceEvent) focusOnSettle = false;
       viewport.attr('transform', transform);
       if (transform.k !== zoomK) { zoomK = transform.k; updateLabelSize(); }
     });
@@ -548,12 +563,23 @@ async function init() {
 
   let lastWidth = window.innerWidth;
   window.addEventListener('resize', () => {
-    // Ignore height-only changes (e.g. the mobile keyboard or browser toolbar showing/hiding).
+    // Height-only changes (the on-screen keyboard or browser toolbar) keep the current view.
     if (window.innerWidth === lastWidth) return;
     lastWidth = window.innerWidth;
     layout();
   });
-  window.visualViewport?.addEventListener('resize', keepSelectedVisible);
+  new ResizeObserver(updateHeaderHeight).observe(header);
+
+  // The keyboard opening/closing resizes the visible area in several steps; re-check once it settles,
+  // otherwise those intermediate updates would cut the jump's zoom animation short.
+  let settle = 0;
+  const onViewportChange = () => {
+    clearTimeout(settle);
+    settle = setTimeout(() => (focusOnSettle ? focusSelected : keepSelectedVisible)(), 150);
+  };
+  window.addEventListener('resize', onViewportChange);
+  window.visualViewport?.addEventListener('resize', onViewportChange);
+  window.visualViewport?.addEventListener('scroll', onViewportChange);
 }
 
 form.addEventListener('submit', e => { e.preventDefault(); commit(input.value); });

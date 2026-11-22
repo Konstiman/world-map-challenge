@@ -246,6 +246,13 @@ button.primary:hover:not(:disabled) { background: #245a93; }
   }
   button { padding: .4rem 1rem; }
 
+  /* The map starts below the header, so no part of it is hidden behind it. */
+  header { background: #fff; }
+  #map {
+    top: var(--header-h, 4.5rem);
+    height: calc(100% - var(--header-h, 4.5rem));
+  }
+
   /* Name field sits under the header so the on-screen keyboard can't cover it. */
   #namer {
     top: calc(var(--header-h, 4.5rem) + .5rem);
