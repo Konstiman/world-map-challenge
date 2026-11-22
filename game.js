@@ -233,7 +233,18 @@ function commit(text) {
   const t = text.trim();
   if (t) guesses.set(selected, t); else guesses.delete(selected);
   save();
-  select(null);
+  select(t ? nearestUnnamed(selected) : null);
+}
+
+function nearestUnnamed(key) {
+  const [x, y] = byKey.get(key).anchor;
+  let best = null, bestD = Infinity;
+  for (const c of countries) {
+    if (guesses.has(c.key)) continue;
+    const d = (c.anchor[0] - x) ** 2 + (c.anchor[1] - y) ** 2;
+    if (d < bestD) { bestD = d; best = c.key; }
+  }
+  return best;
 }
 
 function evaluate() {
