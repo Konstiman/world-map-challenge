@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <title>World Map Challenge</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1><span class="logo" aria-hidden="true">🌍</span><span data-i18n="title">World Map Challenge</span></h1>
+    <span id="status" data-i18n="loading">Loading map…</span>
+    <div class="actions">
+      <button id="evaluate" class="primary" disabled data-i18n="evaluate">Evaluate</button>
+      <button id="reset" class="primary" hidden data-i18n="playAgain">Play again</button>
+    </div>
+  </header>
+
+  <svg id="map"></svg>
+
+  <form id="namer" hidden>
+    <input id="guess" type="text" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" enterkeyhint="done" data-i18n-placeholder="placeholder">
+    <button type="submit" data-i18n="save">Save</button>
+    <button type="button" id="clear" data-i18n="clear">Clear</button>
+  </form>
+
+  <div id="tooltip" hidden></div>
+  <button id="help" class="icon" data-i18n-title="help" aria-label="How to play">?</button>
+  <footer>© 2026 Jan Konstant</footer>
+
+  <dialog id="intro" class="card">
+    <form method="dialog">
+      <div class="globe" aria-hidden="true">🌍</div>
+      <h2 data-i18n="title">World Map Challenge</h2>
+      <p class="lead" data-i18n="introLead"></p>
+      <ol id="intro-steps" class="steps"></ol>
+      <p class="note" data-i18n="introNote"></p>
+      <div class="dialog-actions">
+        <button class="primary" autofocus data-i18n="start">Let’s play</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="result" class="card">
+    <form method="dialog">
+      <h2 data-i18n="resultTitle">Your result</h2>
+      <p id="verdict" class="verdict"></p>
+      <div class="big-score" id="score-correct">0</div>
+      <p id="score-outof" class="outof"></p>
+      <div class="progress"><div id="score-bar"></div></div>
+      <div class="stats">
+        <div class="stat correct"><b id="stat-correct">0</b><span data-i18n="correct">Correct</span></div>
+        <div class="stat wrong"><b id="stat-wrong">0</b><span data-i18n="wrong">Wrong</span></div>
+        <div class="stat missed"><b id="stat-missed">0</b><span data-i18n="unnamed">Not named</span></div>
+      </div>
+      <p id="accuracy" class="note"></p>
+      <p class="note" data-i18n="explore"></p>
+      <div class="dialog-actions">
+        <button value="map" data-i18n="showMap">Show map</button>
+        <button value="again" class="primary" data-i18n="playAgain">Play again</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+  <script src="i18n.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
