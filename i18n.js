@@ -155,6 +155,7 @@ const COUNTRY_NAMES = {
   'Tunisia': ['Tunesien', 'Tunisko'],
   'Trinidad and Tobago': ['Trinidad und Tobago', 'Trinidad a Tobago'],
   'Tonga': ['Tonga', 'Tonga'],
+  'Tuvalu': ['Tuvalu', 'Tuvalu'],
   'Togo': ['Togo', 'Togo'],
   'Timor-Leste': ['Osttimor|Timor-Leste', 'Východní Timor|Timor-Leste'],
   'Thailand': ['Thailand', 'Thajsko'],

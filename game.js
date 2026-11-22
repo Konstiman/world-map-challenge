@@ -1,12 +1,34 @@
 const MAP_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json';
 const STORAGE_KEY = 'name-the-countries';
 
-// Features that are shown but not part of the quiz.
+// Features that are shown but not part of the quiz. The quiz covers the 193 UN member states
+// plus Kosovo, Taiwan, Vatican, Western Sahara and Greenland.
 const EXCLUDED = new Set([
   'Antarctica', 'Siachen Glacier', 'Ashmore and Cartier Is.', 'Indian Ocean Ter.',
   'Heard I. and McDonald Is.', 'Fr. S. Antarctic Lands', 'Br. Indian Ocean Ter.',
   'S. Geo. and the Is.',
+  // Disputed
+  'Palestine',
+  // Dependent territories
+  'Åland', 'American Samoa', 'Anguilla', 'Aruba', 'Bermuda', 'British Virgin Is.', 'Cayman Is.',
+  'Cook Is.', 'Curaçao', 'Faeroe Is.', 'Falkland Is.', 'Fr. Polynesia', 'Guam',
+  'Guernsey', 'Hong Kong', 'Isle of Man', 'Jersey', 'Macao', 'Montserrat', 'N. Mariana Is.',
+  'New Caledonia', 'Niue', 'Norfolk Island', 'Pitcairn Is.', 'Puerto Rico', 'Saint Helena',
+  'Sint Maarten', 'St. Pierre and Miquelon', 'St-Barthélemy', 'St-Martin', 'Turks and Caicos Is.',
+  'U.S. Virgin Is.', 'Wallis and Futuna Is.',
 ]);
+
+// Regions merged into the state they belong to (dissolving the shared border).
+const MERGES = [['N. Cyprus', 'Cyprus'], ['Somaliland', 'Somalia']];
+
+// Tuvalu is missing from the 50m data, so its main atolls are added as small hexagons: [lon, lat].
+const TUVALU_ATOLLS = [
+  [176.13, -5.68], [176.32, -6.29], [177.34, -6.11], [177.16, -7.24],
+  [178.68, -7.48], [178.37, -8.0], [179.19, -8.52], [179.83, -9.38],
+];
+
+// Highest zoom used when jumping to the next country, so small countries keep some context around them.
+const MAX_FOCUS_ZOOM = 14;
 
 // Map name -> [display name, ...accepted alternatives]
 const ALIASES = {
@@ -151,17 +173,46 @@ function namesFor(mapName) {
   return { display, names: [...all] };
 }
 
-// Label anchor: centroid of the largest polygon (avoids e.g. France's label landing in the Atlantic).
-function anchorFor(feature, path) {
+// Largest polygon of a country, used for the label anchor (avoids e.g. France's label landing in the Atlantic).
+function mainPart(feature) {
   const g = feature.geometry;
-  if (g.type !== 'MultiPolygon') return path.centroid(feature);
+  if (g.type !== 'MultiPolygon') return feature;
   let best = null, bestArea = -1;
   for (const coords of g.coordinates) {
     const poly = { type: 'Polygon', coordinates: coords };
     const a = d3.geoArea(poly);
     if (a > bestArea) { bestArea = a; best = poly; }
   }
-  return path.centroid(best);
+  return best;
+}
+
+// Screen box of a country: its largest part plus every part chained to it within `gap` pixels.
+// Archipelagos stay whole, while far-away overseas parts (e.g. French Guiana for France) are left out.
+function countryBox(feature, part, path, gap) {
+  // Bounds from the projected outline points, ignoring points on the far side of the 180° meridian
+  // (Russia's and Fiji's outlines cross it, which would otherwise span the whole map).
+  const projection = path.projection();
+  const mainGeom = part.type === 'Feature' ? part.geometry : part;
+  const mainLon = d3.geoCentroid(mainGeom)[0];
+  const boundsOf = poly => {
+    const pts = poly.coordinates[0].filter(([lon]) => Math.abs(lon - mainLon) <= 180).map(projection);
+    if (!pts.length) return null;
+    return [[d3.min(pts, p => p[0]), d3.min(pts, p => p[1])], [d3.max(pts, p => p[0]), d3.max(pts, p => p[1])]];
+  };
+  let box = boundsOf(mainGeom);
+  if (feature.geometry.type !== 'MultiPolygon') return box;
+  let rest = feature.geometry.coordinates.map(coordinates => boundsOf({ coordinates })).filter(Boolean);
+  const near = b => b[0][0] - gap <= box[1][0] && b[1][0] + gap >= box[0][0] && b[0][1] - gap <= box[1][1] && b[1][1] + gap >= box[0][1];
+  for (let grew = true; grew;) {
+    grew = false;
+    rest = rest.filter(b => {
+      if (!near(b)) return true;
+      box = [[Math.min(box[0][0], b[0][0]), Math.min(box[0][1], b[0][1])], [Math.max(box[1][0], b[1][0]), Math.max(box[1][1], b[1][1])]];
+      grew = true;
+      return false;
+    });
+  }
+  return box;
 }
 
 function save() {
@@ -214,14 +265,14 @@ function updateLabelSize() {
     .attr('stroke-width', 3 / zoomK);
 }
 
-function select(key) {
+function select(key, focus = false) {
   selected = key;
   if (key) {
     form.hidden = false;
     input.value = guesses.get(key) || '';
     input.focus();
     input.select();
-    requestAnimationFrame(keepSelectedVisible);
+    requestAnimationFrame(focus ? focusSelected : keepSelectedVisible);
   } else {
     form.hidden = true;
   }
@@ -233,7 +284,7 @@ function commit(text) {
   const t = text.trim();
   if (t) guesses.set(selected, t); else guesses.delete(selected);
   save();
-  select(t ? nearestUnnamed(selected) : null);
+  select(t ? nearestUnnamed(selected) : null, true);
 }
 
 function nearestUnnamed(key) {
@@ -326,6 +377,31 @@ function assignCrimeaToUkraine(world, features) {
   uaFeature.geometry = topojson.merge(world, [ua, ...crimea.map(arcs => ({ type: 'Polygon', arcs }))]);
 }
 
+// Merges each MERGES region into its state (dissolving the shared border) and drops it from the map.
+function applyMerges(world, features) {
+  const geoms = world.objects.countries.geometries;
+  for (const [from, to] of MERGES) {
+    const a = geoms.find(g => g.properties.name === from);
+    const b = geoms.find(g => g.properties.name === to);
+    const i = features.findIndex(f => f.properties.name === from);
+    if (!a || !b || i < 0) continue;
+    features.find(f => f.properties.name === to).geometry = topojson.merge(world, [a, b]);
+    features.splice(i, 1);
+  }
+}
+
+function tuvaluFeature() {
+  const r = 0.05;
+  const coordinates = TUVALU_ATOLLS.map(([lon, lat]) => {
+    const ring = d3.range(6).map(i => [lon + r * Math.cos(i * Math.PI / 3), lat + r * Math.sin(i * Math.PI / 3)]);
+    ring.push(ring[0]);
+    // d3 expects clockwise exterior rings; otherwise the polygon would cover the rest of the globe.
+    if (d3.geoArea({ type: 'Polygon', coordinates: [ring] }) > 2 * Math.PI) ring.reverse();
+    return [ring];
+  });
+  return { type: 'Feature', properties: { name: 'Tuvalu' }, geometry: { type: 'MultiPolygon', coordinates } };
+}
+
 // Fits the map to the screen. In portrait, the initial view is zoomed so the map fills the available height.
 function layout() {
   const W = svg.node().clientWidth, H = svg.node().clientHeight;
@@ -339,7 +415,12 @@ function layout() {
   const [[x0, y0], [x1, y1]] = path.bounds({ type: 'Sphere' });
 
   countryLayer.selectAll('path').attr('d', path);
-  for (const c of countries) c.anchor = anchorFor(c.feature, path);
+  const gap = (x1 - x0) * 0.03;
+  for (const c of countries) {
+    const part = mainPart(c.feature);
+    c.anchor = path.centroid(part);
+    c.box = countryBox(c.feature, part, path, gap);
+  }
 
   const availH = H - top - bottom;
   const k = H > W ? Math.max(1, (availH - 16) / (y1 - y0)) : 1;
@@ -348,35 +429,85 @@ function layout() {
     .scale(k)
     .translate(-(x0 + x1) / 2, -(y0 + y1) / 2);
 
+  // Extra slack beyond the map edges so a country near an edge can still be moved clear of the header,
+  // the name field or the on-screen keyboard.
+  const slack = Math.max(120, H * 0.4);
   zoom
     .extent([[0, 0], [W, H]])
     .scaleExtent([1, 300])
-    .translateExtent([[x0 - 40, y0 - top - 8], [x1 + 40, y1 + bottom + 8]]);
+    .translateExtent([[x0 - 40, y0 - top - slack], [x1 + 40, y1 + bottom + slack]]);
   svg.call(zoom.transform, homeTransform);
   render();
 }
 
-// Pans the map so the selected country isn't hidden behind the header, name field or on-screen keyboard.
-function keepSelectedVisible() {
-  if (!selected) return;
-  const t = d3.zoomTransform(svg.node());
-  const [x, y] = t.apply(byKey.get(selected).anchor);
+// Screen area not covered by the header, name field or on-screen keyboard.
+function visibleRect() {
   const vv = window.visualViewport;
   const margin = 30;
   const f = form.getBoundingClientRect();
   const formOnTop = f.top < window.innerHeight / 2;
-  const minY = (formOnTop ? f.bottom : header.getBoundingClientRect().bottom) + margin;
-  const maxY = Math.min(formOnTop ? Infinity : f.top, vv ? vv.offsetTop + vv.height : window.innerHeight) - margin;
-  const minX = margin, maxX = window.innerWidth - margin;
-  const dx = x < minX ? minX - x : x > maxX ? maxX - x : 0;
-  const dy = maxY < minY ? 0 : y < minY ? minY - y : y > maxY ? maxY - y : 0;
+  return {
+    x0: margin,
+    x1: window.innerWidth - margin,
+    y0: (formOnTop ? f.bottom : header.getBoundingClientRect().bottom) + margin,
+    y1: Math.min(formOnTop ? Infinity : f.top, vv ? vv.offsetTop + vv.height : window.innerHeight) - margin,
+  };
+}
+
+// Pans the map (keeping the zoom) so the selected country isn't hidden behind the header, name field
+// or on-screen keyboard. The whole country is brought into view when it fits, otherwise its label point.
+function keepSelectedVisible() {
+  if (!selected) return;
+  const c = byKey.get(selected);
+  const t = d3.zoomTransform(svg.node());
+  const r = visibleRect();
+  if (r.x1 <= r.x0 || r.y1 <= r.y0) return;
+  let [[sx0, sy0], [sx1, sy1]] = [t.apply(c.box[0]), t.apply(c.box[1])];
+  if (sx1 - sx0 > r.x1 - r.x0 || sy1 - sy0 > r.y1 - r.y0) {
+    [sx0, sy0] = [sx1, sy1] = t.apply(c.anchor);
+  }
+  const dx = sx0 < r.x0 ? r.x0 - sx0 : sx1 > r.x1 ? r.x1 - sx1 : 0;
+  const dy = sy0 < r.y0 ? r.y0 - sy0 : sy1 > r.y1 ? r.y1 - sy1 : 0;
   if (dx || dy) svg.transition().duration(250).call(zoom.translateBy, dx / t.k, dy / t.k);
+}
+
+// After jumping to the next country: re-zoom if it doesn't fit or would be tiny at the current zoom,
+// leaving plenty of surrounding map visible, and center the whole country in the free screen area.
+function focusSelected() {
+  if (!selected) return;
+  const c = byKey.get(selected);
+  const t = d3.zoomTransform(svg.node());
+  const r = visibleRect();
+  const vw = r.x1 - r.x0, vh = r.y1 - r.y0;
+  if (vw <= 0 || vh <= 0) return;
+  const [[bx0, by0], [bx1, by1]] = c.box;
+  const fill = Math.min(vw / Math.max(bx1 - bx0, 1e-3), vh / Math.max(by1 - by0, 1e-3));
+  const ideal = Math.max(1, Math.min(fill * 0.3, MAX_FOCUS_ZOOM));
+  const keepZoom = t.k <= fill * 0.8 && t.k >= ideal / 3;
+  if (keepZoom) {
+    const [[sx0, sy0], [sx1, sy1]] = [t.apply([bx0, by0]), t.apply([bx1, by1])];
+    if (sx0 >= r.x0 && sx1 <= r.x1 && sy0 >= r.y0 && sy1 <= r.y1) return;
+  }
+  const k = keepZoom ? t.k : ideal;
+
+  const W = svg.node().clientWidth, H = svg.node().clientHeight;
+  const target = zoom.constrain()(
+    d3.zoomIdentity
+      .translate((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2)
+      .scale(k)
+      .translate(-(bx0 + bx1) / 2, -(by0 + by1) / 2),
+    [[0, 0], [W, H]],
+    zoom.translateExtent(),
+  );
+  svg.transition().duration(600).call(zoom.transform, target);
 }
 
 async function init() {
   const world = await d3.json(MAP_URL);
   const features = topojson.feature(world, world.objects.countries).features;
   assignCrimeaToUkraine(world, features);
+  applyMerges(world, features);
+  if (!features.some(f => f.properties.name === 'Tuvalu')) features.push(tuvaluFeature());
 
   for (const f of features) {
     const name = f.properties.name;
@@ -403,6 +534,8 @@ async function init() {
 
   zoom = d3.zoom()
     .clickDistance(6)
+    // Plain interpolation: d3's default zooms out mid-flight on long pans, which sticks if a new jump interrupts it.
+    .interpolate(d3.interpolate)
     .on('zoom', ({ transform }) => {
       viewport.attr('transform', transform);
       if (transform.k !== zoomK) { zoomK = transform.k; updateLabelSize(); }
