@@ -49,6 +49,27 @@ test('malformed saved progress is rejected rather than treated as a completed de
   assert.deepEqual(validateProgress(JSON.parse(JSON.stringify(progress))), progress);
 });
 
+test('learning selects nearby eligible cards without bypassing review priority or retry spacing', () => {
+  const keys = ['last', 'far', 'near', 'closest'];
+  const distances = { last: 0, far: 10, near: 2, closest: 1 };
+  const distance = (from, to) => Math.abs(distances[from] - distances[to]);
+  const progress = { last: review(null, 'correct', 0, 100) };
+  assert.equal(nextCard(keys, progress, 1, 100, 'last', distance), 'closest');
+  progress.closest = review(null, 'easy', 0, 100);
+  assert.equal(nextCard(keys, progress, 1, 100, 'last', distance), 'near');
+  progress.far = review(null, 'correct', 0, 0);
+  progress.far.due = 100;
+  assert.equal(nextCard(keys, progress, 1, 100, 'last', distance), 'far');
+  progress.near = review(null, 'correct', 0, 0);
+  progress.near.due = 101;
+  assert.equal(nextCard(keys, progress, 1, 100, 'last', distance), 'far');
+  assert.equal(nextCard(keys, progress, 1, 101, 'last', distance), 'near');
+  progress.near = review(null, 'wrong', 1, 100);
+  assert.equal(nextCard(keys, progress, 2, 100, 'last', distance), 'far');
+  assert.equal(nextCard(keys, progress, 5, 100, 'last', distance), 'near');
+  assert.equal(nextCard(keys, progress, 1, 100, null, distance), 'far');
+});
+
 test('capital answers accept aliases, accents, multiple capitals and minor typos, not another capital', () => {
   const prague = { capitalNames: ['Prague', 'Praha', 'Prag'] };
   const paris = { capitalNames: ['Paris'] };

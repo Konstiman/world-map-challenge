@@ -1,7 +1,7 @@
 import { LANG, t } from './i18n.js';
 import {
   init, localize, countries, isCorrect, showChallenge, showCard,
-  saveChallengeAnswer, clearChallengeAnswer,
+  saveChallengeAnswer, clearChallengeAnswer, countryDistance,
 } from './game.js';
 import { capitalIsCorrect, allCapitalsAreCorrect } from './answers.js';
 import { nextCard, review, validateProgress } from './learning.js';
@@ -120,9 +120,13 @@ function line(key, name) {
 
 function showInfo(reveal = false) {
   info.replaceChildren();
-  if (subject() !== 'countries' || reveal) line('countryLabel', current.display);
-  if (subject() !== 'capitals' || reveal) line('capitalLabel', current.capitalDisplay.join(' / '));
-  if (subject() !== 'flags' || reveal) info.append(flag(current, t('learnFlags')));
+  if (subject() !== 'countries' || (reveal && !isLearning())) line('countryLabel', current.display);
+  if ((!isLearning() && subject() !== 'capitals') || (subject() === 'capitals' && reveal)) {
+    line('capitalLabel', current.capitalDisplay.join(' / '));
+  }
+  if (!(isLearning() && subject() === 'countries') && (subject() !== 'flags' || reveal)) {
+    info.append(flag(current, t('learnFlags')));
+  }
 }
 
 function updateProgress() {
@@ -201,7 +205,13 @@ function updateClearControl() {
   clearAnswer.hidden = isLearning() || challengeEvaluated || !guess.value || subject() === 'flags';
 }
 
-function wrongAnswer() {
+function wrongAnswer(revealOnly = false) {
+  if (revealOnly) {
+    if (subject() === 'flags') return t('flagRevealed', { country: current.display });
+    return t('answerRevealed', {
+      answer: subject() === 'countries' ? current.display : current.capitalDisplay.join(', '),
+    });
+  }
   if (subject() === 'flags') return t('wrongFlag', { country: current.display });
   if (subject() === 'countries') return t('wrongCountry', { answer: current.display });
   return t(current.capitals.length > 1 ? 'wrongCapitals' : 'wrongCapital', {
@@ -212,7 +222,7 @@ function wrongAnswer() {
 function advance() {
   clearTimeout(reviewTimer);
   const lastKey = current?.key;
-  const key = nextCard(order, deck(), turn, Date.now(), lastKey);
+  const key = nextCard(order, deck(), turn, Date.now(), lastKey, countryDistance);
   current = countries.find(c => c.key === key) || null;
   answered = false;
   panel.scrollTop = 0;
@@ -222,13 +232,15 @@ function advance() {
   easy.hidden = true;
   easy.disabled = true;
   dontKnow.hidden = !current;
+  dontKnow.disabled = false;
   clearAnswer.hidden = true;
   clearFlag.hidden = true;
   answerForm.hidden = !current || subject() === 'flags';
+  answerForm.querySelector('[type="submit"]').hidden = false;
   options.hidden = !current || subject() !== 'flags';
   options.replaceChildren();
   updateProgress();
-  showCard(current, isLearning());
+  showCard(current, isLearning(), subject() === 'capitals');
   if (!current) {
     info.replaceChildren();
     document.getElementById('card-prompt').textContent = '';
@@ -247,11 +259,11 @@ function advance() {
     return;
   }
   showInfo();
-  document.getElementById('card-prompt').hidden = false;
+  document.getElementById('card-prompt').hidden = subject() !== 'flags';
   document.getElementById('card-prompt').textContent = t({
     countries: 'countryPrompt', capitals: 'capitalPrompt', flags: 'flagPrompt',
   }[subject()]);
-  guess.placeholder = t(subject() === 'countries' ? 'placeholder' : 'capitalPlaceholder');
+  guess.placeholder = t(subject() === 'countries' ? 'countryPrompt' : 'capitalPlaceholder');
   guess.setAttribute('aria-label', guess.placeholder);
   guess.value = '';
   for (const el of answerForm.elements) el.disabled = false;
@@ -263,7 +275,7 @@ function advance() {
   }
 }
 
-function rate(rating, chosen = null) {
+function rate(rating, chosen = null, revealOnly = false) {
   if (!current || answered) return;
   answered = true;
   turn++;
@@ -272,13 +284,14 @@ function rate(rating, chosen = null) {
     saveProgress();
   }
   for (const el of answerForm.elements) el.disabled = true;
+  answerForm.querySelector('[type="submit"]').hidden = true;
   for (const button of options.children) {
     button.disabled = true;
     if (button.dataset.key === current.key) button.classList.add('right-answer');
     else if (button === chosen) button.classList.add('wrong-answer');
   }
-  feedback.textContent = rating === 'wrong' ? wrongAnswer() : t('answerCorrect');
-  feedback.className = rating === 'wrong' ? 'wrong' : 'correct';
+  feedback.textContent = rating === 'wrong' ? wrongAnswer(revealOnly) : t('answerCorrect');
+  feedback.className = revealOnly ? '' : rating === 'wrong' ? 'wrong' : 'correct';
   showInfo(true);
   updateProgress();
   easy.hidden = !isLearning() || rating !== 'correct';
@@ -296,9 +309,14 @@ function start(selectedMode) {
   challengeEvaluated = false;
   menu.close();
   document.getElementById('mode-title').textContent = t(modeNames[mode]);
-  answerForm.querySelector('[type="submit"]').textContent = t(isLearning() ? 'checkAnswer' : 'save');
+  const learningCountries = mode === 'learn-countries';
+  answerForm.querySelector('[type="submit"]').textContent = t(
+    learningCountries ? 'checkAnswerShort' : isLearning() ? 'checkAnswer' : 'save',
+  );
+  if (learningCountries) answerForm.append(dontKnow);
+  else panel.querySelector('.card-actions').prepend(dontKnow);
   answerForm.querySelector('[type="submit"]').hidden = false;
-  panel.querySelector('.card-heading').hidden = !isLearning();
+  panel.querySelector('.card-heading').hidden = true;
   panel.querySelector('.card-actions').hidden = !isLearning();
   document.getElementById('card-progress').hidden = !isLearning();
   clearAnswer.hidden = true;
@@ -359,7 +377,7 @@ answerForm.addEventListener('submit', event => {
   rate(valid ? 'correct' : 'wrong');
 });
 next.addEventListener('click', advance);
-dontKnow.addEventListener('click', () => rate('wrong'));
+dontKnow.addEventListener('click', () => rate('wrong', null, true));
 clearAnswer.addEventListener('click', clearChallengeAnswer);
 clearFlag.addEventListener('click', clearChallengeAnswer);
 guess.addEventListener('input', updateClearControl);

@@ -28,7 +28,7 @@ header {
 
 h1 { font-size: 1.1rem; margin: 0; white-space: nowrap; display: flex; align-items: center; gap: .45rem; }
 .logo { font-size: 1.5em; line-height: 1; }
-.header-progress { display: flex; align-items: center; gap: .75rem; margin-right: auto; }
+.header-progress { display: flex; align-items: center; flex-wrap: wrap; gap: .2rem .75rem; margin-right: auto; }
 #status { color: #555; }
 .actions { display: flex; gap: .5rem; }
 button.header-options { display: none; }
@@ -279,8 +279,7 @@ button.primary:hover:not(:disabled) { background: #245a93; }
 }
 .card-heading { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
 #mode-title { margin: 0; font-size: 1.05rem; }
-#reset-deck { font-size: .75rem; padding: .3rem .5rem; white-space: normal; }
-#card-progress { font-size: .8rem; color: #667; margin: .35rem 0 .7rem; }
+#card-progress { font-size: .8rem; color: #667; }
 #country-info { display: flex; align-items: center; flex-wrap: wrap; gap: .3rem 1rem; }
 #country-info p { margin: 0; font-weight: 600; }
 .flag { display: block; width: auto; height: auto; max-width: 100%; max-height: 64px; border: 1px solid #d5dbe3; }

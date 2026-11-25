@@ -38,6 +38,7 @@
     <div class="header-progress">
       <span id="status" role="status" data-i18n="loading">Loading map…</span>
       <button id="restart" class="link-button" type="button" hidden data-i18n="restart">Start again</button>
+      <span id="card-progress" hidden></span>
     </div>
     <button id="header-options" class="header-options" type="button" aria-expanded="false"
       aria-controls="header-actions" data-i18n-title="headerOptions">
@@ -45,6 +46,7 @@
     </button>
     <div id="header-actions" class="actions">
       <button id="menu-button" data-i18n="mainMenu">Main menu</button>
+      <button id="reset-deck" data-i18n="resetLearning" hidden>Reset learning</button>
       <button id="evaluate" class="primary" disabled hidden data-i18n="evaluate">Evaluate</button>
       <button id="reset" class="primary" hidden data-i18n="playAgain">Play again</button>
     </div>
@@ -57,9 +59,7 @@
   <section id="study-card" aria-labelledby="mode-title" hidden>
     <div class="card-heading">
       <h2 id="mode-title"></h2>
-      <button id="reset-deck" data-i18n="resetLearning" hidden>Reset learning</button>
     </div>
-    <p id="card-progress"></p>
     <div id="country-info"></div>
     <p id="card-prompt"></p>
     <form id="card-answer">
@@ -76,7 +76,7 @@
     </div>
     <div id="card-feedback" role="status" aria-live="polite"></div>
     <div class="card-actions">
-      <button id="dont-know" data-i18n="dontKnow" hidden>Don't know</button>
+      <button id="dont-know" type="button" data-i18n="dontKnow" hidden>Don't know</button>
       <button id="too-easy" data-i18n="tooEasy" hidden>Too easy</button>
       <button id="next-card" class="primary" data-i18n="nextCard" hidden>Next card</button>
     </div>

@@ -11,7 +11,7 @@ export function review(previous, rating, turn, now = Date.now()) {
   return { stage, due: now + INTERVALS[stage - 1] * DAY, retry: false, availableAfter: 0, excluded: false };
 }
 
-export function nextCard(keys, progress, turn, now = Date.now(), lastKey = null) {
+export function nextCard(keys, progress, turn, now = Date.now(), lastKey = null, distance = null) {
   const due = keys.filter(key => !progress[key]?.excluded && (progress[key]?.due || 0) <= now);
   const ready = due.filter(key => !progress[key]?.retry || progress[key].availableAfter <= turn);
   // If only failed cards remain, repeat immediately rather than leaving the deck stuck.
@@ -21,7 +21,9 @@ export function nextCard(keys, progress, turn, now = Date.now(), lastKey = null)
   return candidates.sort((a, b) => {
     const pa = progress[a], pb = progress[b];
     const retryOrder = Number(!!pb?.retry) - Number(!!pa?.retry);
-    return retryOrder || Number(!!pb) - Number(!!pa) || (pa?.due || 0) - (pb?.due || 0);
+    return retryOrder || Number(!!pb) - Number(!!pa) ||
+      (lastKey && distance ? distance(lastKey, a) - distance(lastKey, b) : 0) ||
+      (pa?.due || 0) - (pb?.due || 0);
   })[0] || null;
 }
 

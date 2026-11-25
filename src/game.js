@@ -104,6 +104,9 @@ const input = document.getElementById('guess');
 const tooltip = document.getElementById('tooltip');
 
 export let countries = [];  // quiz countries: { key, display, names[], feature, anchor }
+export function countryDistance(fromKey, toKey) {
+  return d3.geoDistance(byKey.get(fromKey).center, byKey.get(toKey).center);
+}
 let byKey = new Map();
 let guesses = new Map();     // key -> typed text
 let results = null;          // key -> 'correct' | 'wrong' (after evaluation)
@@ -118,6 +121,7 @@ const introDialog = document.getElementById('intro');
 const resultDialog = document.getElementById('result');
 let cardMode = false;
 let learningMode = false;
+let cardCapitalMarkers = true;
 let cardCountry = null;
 let projection = null;
 let challengeSubject = 'countries';
@@ -242,7 +246,7 @@ function render() {
       .attr('class', d => `country quiz${d.key === selected ? ' selected' : ''}`);
     labelLayer.selectAll('text').remove();
     capitalLayer.selectAll('circle')
-      .data(cardCountry?.capitalPoints || [])
+      .data(cardCapitalMarkers ? cardCountry?.capitalPoints || [] : [])
       .join('circle')
       .attr('class', 'capital-marker')
       .attr('cx', d => projection(d)[0])
@@ -309,9 +313,10 @@ export function showChallenge(subject, onSelection = null) {
   layout();
 }
 
-export function showCard(country, learning = false) {
+export function showCard(country, learning = false, capitalMarkers = true) {
   cardMode = true;
   learningMode = learning;
+  cardCapitalMarkers = capitalMarkers;
   cardCountry = country;
   selected = country?.key || null;
   focusOnSettle = true;
@@ -633,6 +638,7 @@ export async function init() {
     const localized = metadata.capitals.map(capital => capitalNames(capital, LANG));
     countries.push({
       key: name, display, names, feature: f, anchor: [0, 0], ...metadata,
+      center: d3.geoCentroid(mainPart(f)),
       capitalDisplay: localized.map(names => names[0]),
       capitalGroups: capitalAnswerGroups(metadata.capitals),
       capitalNames: [...new Set([...metadata.capitalNames, ...localized.flat()])],

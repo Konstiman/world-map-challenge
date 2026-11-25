@@ -28,7 +28,7 @@ Learning progress is saved in your browser. Use the same browser and local addre
 - **Name the Countries** preserves the original free-order map challenge, saved answers, typo tolerance and evaluation.
 - **Name the Capitals** shows the country and its flag, with capital locations marked on the map. Enter a capital name.
 - **Match the Flag** shows the country and its capitals. Choose the correct flag from four randomly shuffled options.
-- **Learn: Country names, Capitals, Flags** use zoomed map cards, hiding only the information being learned. Country and capital answers are typed; flags use four choices.
+- **Learn: Country names, Capitals, Flags** use zoomed map cards, hiding the information being learned. Country and capital answers are typed; flags use four choices. Country and flag learning also hide capital names and capital map markers, even after revealing the answer. Country-name learning also hides the flag.
 
 All challenges let you browse the map freely and select countries in any order. Save or revise answers, clear them with the inline **×**, or select another country; press **Evaluate** when ready. Answers are saved separately for each challenge in this browser. Capital markers appear for the selected country; hover shows country names before evaluation and reveals capitals afterward. Flag selections can be revised before evaluation.
 
@@ -40,7 +40,10 @@ The capital challenge requires **all** listed capitals for countries with multip
 
 Learning decks are independent and saved in this browser:
 
-- Learning modes offer **Don't know** to reveal the answer and count it as a miss. Learning cards then repeat.
+- Learning progress is shown in the header; **Reset learning** is in the header actions (the hamburger menu on mobile). Cards use input placeholders instead of duplicate text prompts, and hide **Check answer** after submission.
+- Country-name learning uses a shorter **Check** button, with **Don't know** beside it.
+- Each learning session starts with a random eligible country, then favors the geographically nearest country within the same review priority. Due reviews still precede new cards, and missed-card repetition keeps its existing spacing.
+- Learning modes offer **Don't know** to reveal the answer with neutral feedback and count it as a miss. Learning cards then repeat.
 - Missed cards reset their streak and return after four other answers. If no other cards are available, they repeat immediately.
 - Correct answers schedule reviews after 1, 3, 7, 14, then 30 days (subsequent successes remain at 30 days).
 - **Too easy** appears only after a correct answer and excludes that card from the learning deck until **Reset learning** is used. Resetting one deck does not affect the others.
