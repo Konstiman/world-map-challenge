@@ -27,7 +27,7 @@ Learning progress is saved in your browser. Use the same browser and local addre
 
 - **Name the Countries** preserves the original free-order map challenge, saved answers, typo tolerance and evaluation.
 - **Name the Capitals** shows the country and its flag, with capital locations marked on the map. Enter a capital name.
-- **Match the Flag** shows the country and its capitals. Choose the correct flag from four randomly shuffled options.
+- **Match the Flag** shows the country and its capitals. Choose the correct flag from four randomly shuffled options. In both flag modes, the three distractors are sampled from the country's ten geographically nearest countries (using great-circle distances between the main landmass centers). These neighbor lists are calculated once when the map loads, not on each question. Previously saved challenge choices remain visible.
 - **Learn: Country names, Capitals, Flags** use zoomed map cards, hiding the information being learned. Country and capital answers are typed; flags use four choices. Country and flag learning also hide capital names and capital map markers, even after revealing the answer. Country-name learning also hides the flag.
 
 All challenges let you browse the map freely and select countries in any order. Save or revise answers, clear them with the inline **×**, or select another country; press **Evaluate** when ready. Answers are saved separately for each challenge in this browser. Capital markers appear for the selected country; hover shows country names before evaluation and reveals capitals afterward. Flag selections can be revised before evaluation.
@@ -51,7 +51,7 @@ Learning decks are independent and saved in this browser:
 - **Too easy** appears only after a correct answer and excludes that card from the learning deck until **Reset learning** is used. Resetting one deck does not affect the others.
 - A completed deck shows its next review time. Returning later resumes the due cards. There is no account or cross-device synchronization.
 
-The interface, country names and capital names follow browser language preferences (English, German or Czech). English names and localized aliases are accepted. Capital learning accepts any listed capital, while the capital challenge requires them all. Yaren represents Nauru's seat of government, as Nauru has no official capital. Greenland remains visible on the map but is excluded from all challenges and learning decks; the active modes cover 196 countries.
+The interface, country names and capital names follow browser language preferences (English, German or Czech) by default. The language selector at the bottom of the main menu (CZ, EN, DE) overrides this preference and remembers it in this browser. Changing language reloads the game and returns to the main menu without clearing saved answers or learning progress. English names and localized aliases are accepted. Capital learning accepts any listed capital, while the capital challenge requires them all. Yaren represents Nauru's seat of government, as Nauru has no official capital. Greenland remains visible on the map but is excluded from all challenges and learning decks; the active modes cover 196 countries.
 
 ## Tests
 

@@ -1,13 +1,16 @@
-import { LANG, t } from './i18n.js';
+import { LANG, t, setLanguage } from './i18n.js';
 import {
   init, localize, countries, isCorrect, showChallenge, showCard,
   saveChallengeAnswer, clearChallengeAnswer, countryDistance,
 } from './game.js';
 import { capitalIsCorrect, allCapitalsAreCorrect } from './answers.js';
 import { nextCard, review, validateProgress } from './learning.js';
+import { shuffled, flagChoices } from './flags.js';
 
 const STORAGE_KEY = 'world-map-learning-v1';
+const LANGUAGE_KEY = 'world-map-language-v1';
 const menu = document.getElementById('main-menu');
+const languageSelect = document.getElementById('language');
 const panel = document.getElementById('study-card');
 const status = document.getElementById('status');
 const info = document.getElementById('country-info');
@@ -90,15 +93,6 @@ function saveProgress() {
   }
 }
 
-function shuffled(items) {
-  const result = [...items];
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
-}
-
 function isLearning() { return mode?.startsWith('learn-'); }
 function subject() { return mode.split('-')[1]; }
 function deck() { return progress[mode] ||= {}; }
@@ -143,9 +137,7 @@ function updateProgress() {
 function showFlagOptions(saved = '', evaluated = false) {
   options.replaceChildren();
   const chosen = countries.find(c => c.key === saved);
-  const included = chosen && chosen !== current ? [current, chosen] : [current];
-  const distractors = shuffled(countries.filter(c => !included.includes(c))).slice(0, 4 - included.length);
-  for (const [i, country] of shuffled([...included, ...distractors]).entries()) {
+  for (const [i, country] of flagChoices(current, chosen).entries()) {
     const button = document.createElement('button');
     button.type = 'button';
     button.dataset.key = country.key;
@@ -401,6 +393,24 @@ for (const button of menu.querySelectorAll('[data-mode]')) {
   button.addEventListener('click', () => start(button.dataset.mode));
 }
 
+languageSelect.addEventListener('change', () => {
+  try {
+    localStorage.setItem(LANGUAGE_KEY, languageSelect.value);
+  } catch (error) {
+    languageSelect.value = LANG;
+    notify('storageError', error);
+    return;
+  }
+  location.reload();
+});
+
+try {
+  const language = localStorage.getItem(LANGUAGE_KEY);
+  if (language !== null) setLanguage(language);
+} catch (error) {
+  notify('storageError', error);
+}
+languageSelect.value = LANG;
 localize();
 loadProgress();
 openMenu();

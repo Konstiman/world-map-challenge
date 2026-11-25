@@ -213,6 +213,9 @@ button.primary:hover:not(:disabled) { background: #245a93; }
 }
 #main-menu:focus { outline: none; }
 .menu-content { padding: 2rem; }
+.menu-language { display: flex; align-items: center; justify-content: center; gap: .6rem; margin-top: 1rem; }
+.menu-language select { font: inherit; padding: .4rem .6rem; border: 1px solid #888; border-radius: 8px; background: #fff; color: inherit; }
+.menu-language select:focus-visible { outline: 2px solid #8fb3e0; outline-offset: 2px; }
 .menu-copyright { margin: 1rem 0 0; text-align: center; font-size: .75rem; color: #678; }
 .menu-hero { text-align: center; }
 .menu-globe { display: block; font-size: 5.5rem; line-height: 1; margin-bottom: .8rem; filter: drop-shadow(0 6px 12px rgba(43, 108, 176, .2)); }

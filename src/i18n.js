@@ -121,6 +121,7 @@ const STRINGS = {
 Object.assign(STRINGS.en, {
   mainMenu: 'Main menu', menuLead: 'Test your knowledge in Challenges or practice in Learn mode.',
   headerOptions: 'Options',
+  language: 'Language',
   challenges: 'Challenges', learn: 'Learn',
   challengeCountries: 'Name the Countries', challengeCapitals: 'Name the Capitals', challengeFlags: 'Match the Flag',
   learnCountries: 'Country names', learnCapitals: 'Capitals', learnFlags: 'Flags',
@@ -141,7 +142,7 @@ Object.assign(STRINGS.en, {
   learningDone: 'All reviews done for now.', nextReview: 'Next review: {date}',
   allEasy: 'All cards are marked too easy. Reset this deck to learn them again.',
   resetConfirm: 'Reset all saved progress and too-easy cards for this learning mode?',
-  storageError: 'Could not read or save progress in this browser. Progress may not survive a reload.',
+  storageError: 'Could not read or save settings or progress in this browser. Changes may not survive a reload.',
   corruptProgress: 'Saved learning progress is invalid. Reset the affected decks to save new progress.',
   flagError: 'A flag could not be loaded. Reload the page to try again.',
   retryLoad: 'Retry loading',
@@ -152,6 +153,7 @@ Object.assign(STRINGS.en, {
 Object.assign(STRINGS.de, {
   mainMenu: 'Hauptmenü', menuLead: 'Teste dein Wissen mit den Herausforderungen oder übe im Lernmodus.',
   headerOptions: 'Optionen',
+  language: 'Sprache',
   challenges: 'Herausforderungen', learn: 'Lernen',
   challengeCountries: 'Länder benennen', challengeCapitals: 'Hauptstädte benennen', challengeFlags: 'Flaggen zuordnen',
   learnCountries: 'Ländernamen', learnCapitals: 'Hauptstädte', learnFlags: 'Flaggen',
@@ -172,7 +174,7 @@ Object.assign(STRINGS.de, {
   learningDone: 'Alle Wiederholungen für heute erledigt.', nextReview: 'Nächste Wiederholung: {date}',
   allEasy: 'Alle Karten sind zu einfach. Setze den Stapel zurück, um sie erneut zu lernen.',
   resetConfirm: 'Den gesamten Lernfortschritt und alle zu einfachen Karten dieses Modus zurücksetzen?',
-  storageError: 'Der Fortschritt konnte nicht gelesen oder gespeichert werden und geht beim Neuladen möglicherweise verloren.',
+  storageError: 'Einstellungen oder Fortschritt konnten nicht gelesen oder gespeichert werden. Änderungen gehen beim Neuladen möglicherweise verloren.',
   corruptProgress: 'Der gespeicherte Lernfortschritt ist ungültig. Setze die betroffenen Stapel zurück.',
   flagError: 'Eine Flagge konnte nicht geladen werden. Lade die Seite erneut.',
   retryLoad: 'Erneut laden',
@@ -183,6 +185,7 @@ Object.assign(STRINGS.de, {
 Object.assign(STRINGS.cs, {
   mainMenu: 'Hlavní menu', menuLead: 'Otestuj svoje znalosti ve Výzvách nebo se procvičuj v módu Učení.',
   headerOptions: 'Možnosti',
+  language: 'Jazyk',
   challenges: 'Výzvy', learn: 'Učení',
   challengeCountries: 'Pojmenuj státy', challengeCapitals: 'Pojmenuj hlavní města', challengeFlags: 'Poznej vlajku',
   learnCountries: 'Názvy států', learnCapitals: 'Hlavní města', learnFlags: 'Vlajky',
@@ -203,7 +206,7 @@ Object.assign(STRINGS.cs, {
   learningDone: 'Prozatím je všechno zopakováno.', nextReview: 'Další opakování: {date}',
   allEasy: 'Všechny karty jsou příliš snadné. Pro další učení obnov tento balíček.',
   resetConfirm: 'Smazat celý postup učení a obnovit všechny snadné karty v tomto režimu?',
-  storageError: 'Postup nelze přečíst nebo uložit v tomto prohlížeči. Po obnovení stránky může být ztracen.',
+  storageError: 'Nastavení nebo postup nelze přečíst nebo uložit v tomto prohlížeči. Po obnovení stránky mohou být změny ztraceny.',
   corruptProgress: 'Uložený postup učení je neplatný. Obnov dotčené balíčky pro další ukládání.',
   flagError: 'Vlajku se nepodařilo načíst. Zkus obnovit stránku.',
   retryLoad: 'Načíst znovu',
@@ -450,13 +453,20 @@ const COUNTRY_NAMES = {
   'Sint Maarten': ['Sint Maarten', 'Sint Maarten'],
 };
 
-export const LANG = (() => {
-  for (const l of navigator.languages || [navigator.language || 'en']) {
+export function browserLanguage(languages) {
+  for (const l of languages) {
     const code = l.slice(0, 2).toLowerCase();
-    if (STRINGS[code]) return code;
+    if (Object.hasOwn(STRINGS, code)) return code;
   }
   return 'en';
-})();
+}
+
+export let LANG = browserLanguage(navigator.languages || [navigator.language || 'en']);
+
+export function setLanguage(language) {
+  if (!Object.hasOwn(STRINGS, language)) throw new Error(`Invalid language: ${language}`);
+  LANG = language;
+}
 
 // Touch devices get touch-specific variants of strings (key + 'Touch') where available.
 export const IS_TOUCH = matchMedia('(pointer: coarse)').matches;

@@ -1,6 +1,7 @@
 import { LANG, t, localNames } from './i18n.js';
 import { normalize, levenshtein, tolerance, allCapitalsAreCorrect } from './answers.js';
 import { capitalNames, capitalAnswerGroups } from './capitals.js';
+import { prepareFlagNeighbors } from './flags.js';
 
 const MAP_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json';
 const STORAGE_KEY = 'name-the-countries';
@@ -652,6 +653,7 @@ export async function init() {
     });
   }
   byKey = new Map(countries.map(c => [c.key, c]));
+  prepareFlagNeighbors(countries, countryDistance);
 
   countryLayer.selectAll('path')
     .data(features)

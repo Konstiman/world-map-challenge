@@ -4,6 +4,48 @@ import { readFileSync } from 'node:fs';
 import { DAY, review, nextCard, validateProgress } from './learning.js';
 import { capitalIsCorrect, allCapitalsAreCorrect } from './answers.js';
 import { capitalNames, capitalAnswerGroups } from './capitals.js';
+import { prepareFlagNeighbors, flagChoices } from './flags.js';
+
+test('flag neighbors cache exactly the ten nearest other countries', () => {
+  const countries = Array.from({ length: 15 }, (_, i) => ({ key: String(i) }));
+  let distanceCalls = 0;
+  prepareFlagNeighbors(countries, (a, b) => {
+    distanceCalls++;
+    return Math.abs(Number(a) - Number(b));
+  });
+  assert.equal(distanceCalls, 15 * 14);
+  for (const country of countries) {
+    assert.equal(country.flagNeighbors.length, 10);
+    assert.equal(new Set(country.flagNeighbors).size, 10);
+    assert.ok(!country.flagNeighbors.includes(country));
+    const farthest = Math.max(...country.flagNeighbors.map(c => Math.abs(Number(c.key) - Number(country.key))));
+    for (const other of countries.filter(c => c !== country && !country.flagNeighbors.includes(c))) {
+      assert.ok(Math.abs(Number(other.key) - Number(country.key)) >= farthest);
+    }
+    for (let i = 0; i < 20; i++) {
+      const choices = flagChoices(country);
+      assert.equal(choices.length, 4);
+      assert.equal(new Set(choices).size, 4);
+      assert.ok(choices.includes(country));
+      assert.ok(choices.every(c => c === country || country.flagNeighbors.includes(c)));
+    }
+  }
+  assert.equal(distanceCalls, 15 * 14, 'showing choices must not recalculate distances');
+});
+
+test('flag choices preserve nearby and legacy saved answers without duplicates', () => {
+  const countries = Array.from({ length: 15 }, (_, i) => ({ key: String(i) }));
+  prepareFlagNeighbors(countries, (a, b) => Math.abs(Number(a) - Number(b)));
+  const current = countries[0];
+  for (const saved of [current, countries[1], countries[14]]) {
+    const choices = flagChoices(current, saved);
+    assert.equal(choices.length, 4);
+    assert.equal(new Set(choices).size, 4);
+    assert.ok(choices.includes(current));
+    assert.ok(choices.includes(saved));
+    assert.ok(choices.every(c => c === current || c === saved || current.flagNeighbors.includes(c)));
+  }
+});
 
 test('successful reviews follow the defined schedule and cap at 30 days', () => {
   let card;
