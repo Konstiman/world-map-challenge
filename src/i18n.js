@@ -119,7 +119,7 @@ const STRINGS = {
 };
 
 Object.assign(STRINGS.en, {
-  mainMenu: 'Main menu', menuLead: 'Explore, challenge yourself, or learn a little every day.',
+  mainMenu: 'Main menu', menuLead: 'Test your knowledge in Challenges or practice in Learn mode.',
   headerOptions: 'Options',
   challenges: 'Challenges', learn: 'Learn',
   challengeCountries: 'Name the Countries', challengeCapitals: 'Name the Capitals', challengeFlags: 'Match the Flag',
@@ -150,7 +150,7 @@ Object.assign(STRINGS.en, {
   scheduleHelp: 'Learning: missed cards return after a few other cards. Correct cards return after 1, 3, 7, 14, then 30 days. “Too easy” excludes a card until you reset that deck. Progress is saved in this browser.',
 });
 Object.assign(STRINGS.de, {
-  mainMenu: 'Hauptmenü', menuLead: 'Entdecke die Welt, fordere dich heraus oder lerne jeden Tag ein wenig.',
+  mainMenu: 'Hauptmenü', menuLead: 'Teste dein Wissen mit den Herausforderungen oder übe im Lernmodus.',
   headerOptions: 'Optionen',
   challenges: 'Herausforderungen', learn: 'Lernen',
   challengeCountries: 'Länder benennen', challengeCapitals: 'Hauptstädte benennen', challengeFlags: 'Flaggen zuordnen',

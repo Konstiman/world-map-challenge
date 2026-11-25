@@ -232,6 +232,7 @@ button.primary:hover:not(:disabled) { background: #245a93; }
 }
 #main-menu:focus { outline: none; }
 .menu-content { padding: 2rem; }
+.menu-copyright { margin: 1rem 0 0; text-align: center; font-size: .75rem; color: #678; }
 .menu-hero { text-align: center; }
 .menu-globe { display: block; font-size: 5.5rem; line-height: 1; margin-bottom: .8rem; filter: drop-shadow(0 6px 12px rgba(43, 108, 176, .2)); }
 .menu-hero h2 { font-size: 1.7rem; color: #1d3557; }
@@ -352,6 +353,7 @@ button.inline-clear {
 }
 
 @media (max-width: 640px) {
+  footer { display: none; }
   header {
     flex-wrap: wrap;
     gap: .3rem .5rem;

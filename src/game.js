@@ -31,8 +31,8 @@ const TUVALU_ATOLLS = [
   [178.68, -7.48], [178.37, -8.0], [179.19, -8.52], [179.83, -9.38],
 ];
 
-// Highest zoom used when jumping to the next country, so small countries keep some context around them.
-const MAX_FOCUS_ZOOM = 14;
+const MAX_ZOOM = 300;
+const MAX_CARD_FOCUS_ZOOM = 14;
 
 // Map name -> [display name, ...accepted alternatives]
 const ALIASES = {
@@ -97,6 +97,7 @@ let labelLayer;
 let capitalLayer;
 const statusEl = document.getElementById('status');
 const evaluateBtn = document.getElementById('evaluate');
+const evaluateInlineBtn = document.getElementById('evaluate-inline');
 const resetBtn = document.getElementById('reset');
 const restartBtn = document.getElementById('restart');
 const form = document.getElementById('namer');
@@ -289,6 +290,7 @@ function render() {
   evaluateBtn.hidden = !!results;
   resetBtn.hidden = !results;
   restartBtn.hidden = !!results || guesses.size === 0;
+  evaluateInlineBtn.hidden = !!results || guesses.size === 0;
 }
 
 function updateLabelSize() {
@@ -323,6 +325,7 @@ export function showCard(country, learning = false, capitalMarkers = true) {
   form.hidden = true;
   tooltip.hidden = true;
   evaluateBtn.hidden = true;
+  evaluateInlineBtn.hidden = true;
   resetBtn.hidden = true;
   restartBtn.hidden = true;
   render();
@@ -531,7 +534,7 @@ function layout() {
   const slack = Math.max(120, H * 0.4);
   zoom
     .extent(() => [[0, 0], [svg.node().clientWidth, svg.node().clientHeight]])
-    .scaleExtent([1, 300])
+    .scaleExtent([1, MAX_ZOOM])
     .translateExtent([[x0 - 40, y0 - top - slack], [x1 + 40, y1 + bottom + slack]]);
   svg.call(zoom.transform, homeTransform);
   render();
@@ -593,8 +596,12 @@ function focusSelected(force = false) {
   if (vw <= 0 || vh <= 0) return;
   const [[bx0, by0], [bx1, by1]] = cardMode || challengeSubject === 'capitals' ? c.cardBox : c.box;
   const fill = Math.min(vw / Math.max(bx1 - bx0, 1e-3), vh / Math.max(by1 - by0, 1e-3));
-  const ideal = Math.max(1, Math.min(fill * (cardMode ? 0.65 : 0.3), MAX_FOCUS_ZOOM));
-  const keepZoom = !force && t.k <= fill * 0.8 && t.k >= ideal / 3;
+  const ideal = Math.max(1, Math.min(
+    fill * (cardMode ? 0.65 : 0.3),
+    cardMode ? MAX_CARD_FOCUS_ZOOM : MAX_ZOOM,
+  ));
+  const largeEnough = cardMode || Math.max(bx1 - bx0, by1 - by0) * t.k >= 32;
+  const keepZoom = !force && largeEnough && t.k <= fill * 0.8 && t.k >= ideal / 3;
   if (keepZoom) {
     const [[sx0, sy0], [sx1, sy1]] = [t.apply([bx0, by0]), t.apply([bx1, by1])];
     if (sx0 >= r.x0 && sx1 <= r.x1 && sy0 >= r.y0 && sy1 <= r.y1) return;
@@ -702,6 +709,7 @@ document.getElementById('clear').addEventListener('click', clearChallengeAnswer)
 input.addEventListener('input', updateClearButton);
 input.addEventListener('keydown', e => { if (e.key === 'Escape') select(null); });
 evaluateBtn.addEventListener('click', evaluate);
+evaluateInlineBtn.addEventListener('click', evaluate);
 resetBtn.addEventListener('click', reset);
 restartBtn.addEventListener('click', reset);
 document.getElementById('help').addEventListener('click', () => {
