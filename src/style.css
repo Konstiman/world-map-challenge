@@ -139,25 +139,6 @@ footer {
   pointer-events: none;
 }
 
-#help {
-  position: fixed;
-  right: max(1rem, env(safe-area-inset-right));
-  bottom: calc(max(.4rem, env(safe-area-inset-bottom)) + 1.6rem);
-  width: 2.6rem;
-  height: 2.6rem;
-  min-height: 0;
-  padding: 0;
-  border-radius: 50%;
-  border: none;
-  background: #fff;
-  color: #2b6cb0;
-  font-size: 1.2rem;
-  font-weight: 700;
-  box-shadow: 0 2px 8px rgba(20, 40, 70, .25);
-  z-index: 2;
-}
-#help:hover { background: #eef4fb; }
-
 /* Dialogs */
 dialog.card {
   width: min(26rem, calc(100vw - 2rem));
@@ -287,7 +268,8 @@ button.primary:hover:not(:disabled) { background: #245a93; }
 #country-info .flag { max-width: 60px; max-height: 36px; }
 #card-prompt { margin: .7rem 0; }
 #card-answer { display: flex; gap: .5rem; }
-#card-prompt[hidden] + #card-answer { margin-top: 1rem; }
+#card-prompt[hidden] + #card-answer { margin-top: .5rem; }
+#country-info:empty + #card-prompt[hidden] + #card-answer { margin-top: 0; }
 #card-guess {
   font: inherit;
   min-width: 0;
@@ -322,11 +304,12 @@ button.inline-clear {
 #flag-options .selected-answer { border-color: #2b6cb0; background: #eaf3ff; }
 #flag-options .right-answer { border-color: #288028; background: #e7f5e7; }
 #flag-options .wrong-answer { border-color: #bb3333; background: #fbe9e9; }
-#card-feedback { margin-top: .7rem; font-weight: 600; }
-#card-feedback:empty { margin-top: 0; }
+.card-result { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: .5rem; }
+#card-feedback { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
+#card-feedback:empty { flex-basis: 0; }
 #card-feedback.correct { color: #247124; }
 #card-feedback.wrong { color: #a22; }
-.card-actions { display: flex; gap: .6rem; justify-content: flex-end; margin-top: .5rem; }
+.card-actions { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: flex-end; margin-left: auto; }
 .capital-marker { fill: #c42626; stroke: #fff; pointer-events: none; }
 #notice {
   position: fixed;
@@ -426,10 +409,13 @@ button.inline-clear {
     left: .5rem;
     width: calc(100vw - 1rem);
     transform: none;
-    max-height: calc(50dvh - var(--header-h, 4.5rem));
-    padding: .7rem;
+    max-height: calc(100dvh - var(--header-h, 4.5rem) - 1rem);
+    padding: .5rem;
   }
+  #card-answer { flex-wrap: wrap; }
+  #card-answer .answer-field { flex-basis: 10rem; }
   #card-answer button:not(.inline-clear) { padding: .4rem .6rem; }
+  .card-actions button { padding: .4rem .5rem; }
   #card-guess { font-size: 16px; }
   #flag-options { gap: .3rem; }
   #flag-options button { min-height: 68px; }

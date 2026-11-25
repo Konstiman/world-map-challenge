@@ -34,7 +34,7 @@ All challenges let you browse the map freely and select countries in any order. 
 
 Automatic jumps zoom in further for tiny countries such as San Marino, so the selected country remains visible after leaving a larger one.
 
-On mobile, the header's hamburger button opens **Main menu**, **Evaluate**, **Start again**, or **Play again** as appropriate. Evaluated challenge details are read-only and hide Save and clear controls. The copyright appears in the main menu; the map copyright is hidden on mobile.
+On mobile, the header's hamburger button opens **Main menu**, **How to play**, **Evaluate**, **Start again**, or **Play again** as appropriate. Evaluated challenge details are read-only and hide Save and clear controls. The copyright appears in the main menu; the map copyright is hidden on mobile.
 
 Before evaluation, **Evaluate** appears next to the header's answer count once an answer has been saved. It also remains available in the header actions. **Start again** is in the header actions (the hamburger menu on mobile); use it to clear the current challenge's saved answers and start over.
 

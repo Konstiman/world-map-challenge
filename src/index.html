@@ -29,7 +29,7 @@
   <meta name="twitter:image" content="https://map.jankonstant.com/og-image.png">
   <meta name="twitter:image:alt" content="World Map Challenge – a world map with some countries highlighted">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="style.css?version=3">
+  <link rel="stylesheet" href="style.css?version=6">
 </head>
 
 <body>
@@ -46,6 +46,7 @@
     </button>
     <div id="header-actions" class="actions">
       <button id="menu-button" data-i18n="mainMenu">Main menu</button>
+      <button id="help" type="button" data-i18n="help">How to play</button>
       <button id="reset-deck" data-i18n="resetLearning" hidden>Reset learning</button>
       <button id="evaluate" class="primary" disabled hidden data-i18n="evaluate">Evaluate</button>
       <button id="restart" type="button" hidden data-i18n="restart">Start again</button>
@@ -75,11 +76,13 @@
       <div id="flag-options" hidden></div>
       <button type="button" id="clear-flag" class="inline-clear" data-i18n-title="clear" hidden>&times;</button>
     </div>
-    <div id="card-feedback" role="status" aria-live="polite"></div>
-    <div class="card-actions">
-      <button id="dont-know" type="button" data-i18n="dontKnow" hidden>Don't know</button>
-      <button id="too-easy" data-i18n="tooEasy" hidden>Too easy</button>
-      <button id="next-card" class="primary" data-i18n="nextCard" hidden>Next card</button>
+    <div class="card-result">
+      <div id="card-feedback" role="status" aria-live="polite"></div>
+      <div class="card-actions">
+        <button id="dont-know" type="button" data-i18n="dontKnow" hidden>Don't know</button>
+        <button id="too-easy" data-i18n="tooEasy" hidden>Too easy</button>
+        <button id="next-card" class="primary" data-i18n="nextCard" hidden>Next card</button>
+      </div>
     </div>
   </section>
 
@@ -93,7 +96,6 @@
   </form>
 
   <div id="tooltip" hidden></div>
-  <button id="help" class="icon" data-i18n-title="help" aria-label="How to play">?</button>
   <footer>© 2026 Jan Konstant</footer>
 
   <dialog id="main-menu" class="card" aria-labelledby="menu-title">
