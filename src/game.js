@@ -1,8 +1,12 @@
+import { LANG, t, localNames } from './i18n.js';
+import { normalize, levenshtein, tolerance, allCapitalsAreCorrect } from './answers.js';
+import { capitalNames, capitalAnswerGroups } from './capitals.js';
+
 const MAP_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json';
 const STORAGE_KEY = 'name-the-countries';
 
 // Features that are shown but not part of the quiz. The quiz covers the 193 UN member states
-// plus Kosovo, Taiwan, Vatican and Greenland.
+// plus Kosovo, Taiwan and Vatican.
 const EXCLUDED = new Set([
   'Antarctica', 'Siachen Glacier', 'Ashmore and Cartier Is.', 'Indian Ocean Ter.',
   'Heard I. and McDonald Is.', 'Fr. S. Antarctic Lands', 'Br. Indian Ocean Ter.',
@@ -11,7 +15,7 @@ const EXCLUDED = new Set([
   'Palestine',
   // Dependent territories
   'Åland', 'American Samoa', 'Anguilla', 'Aruba', 'Bermuda', 'British Virgin Is.', 'Cayman Is.',
-  'Cook Is.', 'Curaçao', 'Faeroe Is.', 'Falkland Is.', 'Fr. Polynesia', 'Guam',
+  'Cook Is.', 'Curaçao', 'Faeroe Is.', 'Falkland Is.', 'Fr. Polynesia', 'Greenland', 'Guam',
   'Guernsey', 'Hong Kong', 'Isle of Man', 'Jersey', 'Macao', 'Montserrat', 'N. Mariana Is.',
   'New Caledonia', 'Niue', 'Norfolk Island', 'Pitcairn Is.', 'Puerto Rico', 'Saint Helena',
   'Sint Maarten', 'St. Pierre and Miquelon', 'St-Barthélemy', 'St-Martin', 'Turks and Caicos Is.',
@@ -86,18 +90,20 @@ const ALIASES = {
   'Saint Helena': ['Saint Helena', 'St Helena'],
 };
 
-const svg = d3.select('#map');
-const viewport = svg.append('g');
-const countryLayer = viewport.append('g');
-const labelLayer = viewport.append('g');
+let svg;
+let viewport;
+let countryLayer;
+let labelLayer;
+let capitalLayer;
 const statusEl = document.getElementById('status');
 const evaluateBtn = document.getElementById('evaluate');
 const resetBtn = document.getElementById('reset');
+const restartBtn = document.getElementById('restart');
 const form = document.getElementById('namer');
 const input = document.getElementById('guess');
 const tooltip = document.getElementById('tooltip');
 
-let countries = [];          // quiz countries: { key, display, names[], feature, anchor }
+export let countries = [];  // quiz countries: { key, display, names[], feature, anchor }
 let byKey = new Map();
 let guesses = new Map();     // key -> typed text
 let results = null;          // key -> 'correct' | 'wrong' (after evaluation)
@@ -105,46 +111,24 @@ let selected = null;
 let focusOnSettle = false;   // selected via a jump: keep re-fitting it while the keyboard settles
 let zoomK = 1;
 let zoom = null;
-let homeTransform = d3.zoomIdentity;
+let homeTransform = null;
 const header = document.querySelector('header');
 const footer = document.querySelector('footer');
 const introDialog = document.getElementById('intro');
 const resultDialog = document.getElementById('result');
-const INTRO_KEY = 'name-the-countries-intro-seen';
+let cardMode = false;
+let learningMode = false;
+let cardCountry = null;
+let projection = null;
+let challengeSubject = 'countries';
+let challengeSelection = null;
 
-function normalize(s) {
-  return s
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/ß/g, 'ss')
-    .replace(/&/g, ' and ')
-    .replace(/[.'’`,()\-–]/g, ' ')
-    .replace(/\b(st|sankt)\b/g, 'saint')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/^the /, '');
-}
-
-function levenshtein(a, b) {
-  const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
-  for (let i = 1; i <= a.length; i++) {
-    let diag = prev[0];
-    prev[0] = i;
-    for (let j = 1; j <= b.length; j++) {
-      const tmp = prev[j];
-      prev[j] = Math.min(prev[j] + 1, prev[j - 1] + 1, diag + (a[i - 1] === b[j - 1] ? 0 : 1));
-      diag = tmp;
-    }
-  }
-  return prev[b.length];
-}
-
-function tolerance(len) {
-  return len >= 10 ? 2 : len >= 5 ? 1 : 0;
+function challengeStorageKey() {
+  return challengeSubject === 'countries' ? STORAGE_KEY : `world-map-challenge-${challengeSubject}`;
 }
 
 // A guess is correct if its closest match among all countries is this one (within typo tolerance).
-function isCorrect(country, guess) {
+export function isCorrect(country, guess) {
   const g = normalize(guess);
   if (!g) return false;
   let best = null, bestDist = Infinity, ambiguous = false;
@@ -187,6 +171,15 @@ function mainPart(feature) {
   return best;
 }
 
+function capitalPart(country) {
+  const main = mainPart(country.feature);
+  const point = country.capitalPoints[0];
+  if (d3.geoContains(main, point) || country.feature.geometry.type !== 'MultiPolygon') return main;
+  const parts = country.feature.geometry.coordinates.map(coordinates => ({ type: 'Polygon', coordinates }));
+  return parts.find(part => d3.geoContains(part, point)) ||
+    d3.least(parts, part => d3.geoDistance(d3.geoCentroid(part), point));
+}
+
 // Screen box of a country: its largest part plus every part chained to it within `gap` pixels.
 // Archipelagos stay whole, while far-away overseas parts (e.g. French Guiana for France) are left out.
 function countryBox(feature, part, path, gap) {
@@ -217,19 +210,52 @@ function countryBox(feature, part, path, gap) {
 }
 
 function save() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify([...guesses]));
+  try {
+    localStorage.setItem(challengeStorageKey(), JSON.stringify([...guesses]));
+  } catch (error) {
+    document.getElementById('notice').hidden = false;
+    document.getElementById('notice').textContent = t('storageError');
+    console.error(error);
+  }
 }
 
 function load() {
   try {
-    guesses = new Map(JSON.parse(localStorage.getItem(STORAGE_KEY)) || []);
-    for (const k of guesses.keys()) if (!byKey.has(k)) guesses.delete(k);
-  } catch {
+    guesses = new Map(JSON.parse(localStorage.getItem(challengeStorageKey())) || []);
+    for (const [key, value] of guesses) {
+      if (!byKey.has(key)) guesses.delete(key);
+      else if (typeof value !== 'string' || (challengeSubject === 'flags' && !byKey.has(value))) {
+        throw new Error('Invalid saved challenge answer');
+      }
+    }
+  } catch (error) {
     guesses = new Map();
+    document.getElementById('notice').hidden = false;
+    document.getElementById('notice').textContent = t('storageError');
+    console.error(error);
   }
 }
 
 function render() {
+  if (cardMode) {
+    countryLayer.selectAll('path.quiz')
+      .attr('class', d => `country quiz${d.key === selected ? ' selected' : ''}`);
+    labelLayer.selectAll('text').remove();
+    capitalLayer.selectAll('circle')
+      .data(cardCountry?.capitalPoints || [])
+      .join('circle')
+      .attr('class', 'capital-marker')
+      .attr('cx', d => projection(d)[0])
+      .attr('cy', d => projection(d)[1]);
+    updateLabelSize();
+    return;
+  }
+  capitalLayer.selectAll('circle')
+    .data(challengeSubject === 'capitals' && selected ? byKey.get(selected).capitalPoints : [])
+    .join('circle')
+    .attr('class', 'capital-marker')
+    .attr('cx', d => projection(d)[0])
+    .attr('cy', d => projection(d)[1]);
   countryLayer.selectAll('path.quiz')
     .attr('class', d => {
       const cls = ['country', 'quiz'];
@@ -239,7 +265,7 @@ function render() {
       return cls.join(' ');
     });
 
-  const labeled = countries.filter(c => guesses.has(c.key));
+  const labeled = challengeSubject === 'flags' ? [] : countries.filter(c => guesses.has(c.key));
   labelLayer.selectAll('text')
     .data(labeled, d => d.key)
     .join('text')
@@ -258,27 +284,68 @@ function render() {
   evaluateBtn.disabled = !!results || guesses.size === 0;
   evaluateBtn.hidden = !!results;
   resetBtn.hidden = !results;
+  restartBtn.hidden = !!results || guesses.size === 0;
 }
 
 function updateLabelSize() {
   labelLayer.selectAll('text')
     .attr('font-size', 11 / zoomK)
     .attr('stroke-width', 3 / zoomK);
+  capitalLayer.selectAll('circle').attr('r', 5 / zoomK).attr('stroke-width', 2 / zoomK);
+}
+
+export function showChallenge(subject, onSelection = null) {
+  cardMode = false;
+  learningMode = false;
+  challengeSubject = subject;
+  challengeSelection = onSelection;
+  results = null;
+  load();
+  cardCountry = null;
+  selected = null;
+  form.hidden = true;
+  tooltip.hidden = true;
+  challengeSelection?.(null, '', false);
+  layout();
+}
+
+export function showCard(country, learning = false) {
+  cardMode = true;
+  learningMode = learning;
+  cardCountry = country;
+  selected = country?.key || null;
+  focusOnSettle = true;
+  form.hidden = true;
+  tooltip.hidden = true;
+  evaluateBtn.hidden = true;
+  resetBtn.hidden = true;
+  restartBtn.hidden = true;
+  render();
+  requestAnimationFrame(() => focusSelected(true));
 }
 
 function select(key, focus = false) {
   selected = key;
   focusOnSettle = focus;
-  if (key) {
+  if (challengeSelection) {
+    form.hidden = true;
+    challengeSelection(key ? byKey.get(key) : null, guesses.get(key) || '', !!results);
+    if (key) requestAnimationFrame(() => focus ? focusSelected() : keepSelectedVisible());
+  } else if (key) {
     form.hidden = false;
     input.value = guesses.get(key) || '';
     input.focus();
     input.select();
-    requestAnimationFrame(focus ? focusSelected : keepSelectedVisible);
+    requestAnimationFrame(() => focus ? focusSelected() : keepSelectedVisible());
   } else {
     form.hidden = true;
   }
+  updateClearButton();
   render();
+}
+
+function updateClearButton() {
+  document.getElementById('clear').hidden = !input.value || form.hidden || !!results;
 }
 
 function commit(text) {
@@ -289,11 +356,23 @@ function commit(text) {
   select(t ? nearestUnnamed(selected) : null, true);
 }
 
+export function saveChallengeAnswer(text) {
+  if (results) return;
+  commit(text);
+}
+
+export function clearChallengeAnswer() {
+  if (!selected || results) return;
+  guesses.delete(selected);
+  save();
+  select(selected);
+}
+
 function nearestUnnamed(key) {
   const [x, y] = byKey.get(key).anchor;
   let best = null, bestD = Infinity;
   for (const c of countries) {
-    if (guesses.has(c.key)) continue;
+    if (c.key === key || guesses.has(c.key)) continue;
     const d = (c.anchor[0] - x) ** 2 + (c.anchor[1] - y) ** 2;
     if (d < bestD) { bestD = d; best = c.key; }
   }
@@ -304,7 +383,9 @@ function evaluate() {
   select(null);
   results = new Map();
   for (const [key, guess] of guesses) {
-    results.set(key, isCorrect(byKey.get(key), guess) ? 'correct' : 'wrong');
+    const valid = challengeSubject === 'countries' ? isCorrect(byKey.get(key), guess) :
+      challengeSubject === 'capitals' ? allCapitalsAreCorrect(byKey.get(key), guess, countries) : key === guess;
+    results.set(key, valid ? 'correct' : 'wrong');
   }
   render();
   showResult();
@@ -339,12 +420,14 @@ function reset() {
 }
 
 function showTooltip(event, d) {
-  if (!results) { tooltip.hidden = true; return; }
+  if (cardMode || (!results && challengeSubject !== 'capitals')) { tooltip.hidden = true; return; }
   const guess = guesses.get(d.key);
-  const status = results.get(d.key);
-  let html = `<b>${d.display}</b>`;
-  if (status === 'wrong') html += ` — ${escapeHtml(t('youWrote', { guess }))}`;
-  else if (!guess) html += ` — ${t('notNamed')}`;
+  const status = results?.get(d.key);
+  let html = `<b>${escapeHtml(d.display)}</b>`;
+  if (results && challengeSubject === 'capitals') html += ` — ${escapeHtml(byKey.get(d.key).capitalDisplay.join(' / '))}`;
+  const answer = challengeSubject === 'flags' && guess ? byKey.get(guess).display : guess;
+  if (status === 'wrong') html += ` — ${escapeHtml(t(challengeSubject === 'flags' ? 'youChoseFlag' : 'youWrote', { guess: answer }))}`;
+  else if (results && !guess) html += ` — ${t('notNamed')}`;
   tooltip.innerHTML = html;
   tooltip.hidden = false;
   const r = tooltip.getBoundingClientRect();
@@ -401,7 +484,7 @@ function tuvaluFeature() {
     if (d3.geoArea({ type: 'Polygon', coordinates: [ring] }) > 2 * Math.PI) ring.reverse();
     return [ring];
   });
-  return { type: 'Feature', properties: { name: 'Tuvalu' }, geometry: { type: 'MultiPolygon', coordinates } };
+  return { type: 'Feature', id: '798', properties: { name: 'Tuvalu' }, geometry: { type: 'MultiPolygon', coordinates } };
 }
 
 // Fits the map to the screen. In portrait, the initial view is zoomed so the map fills the available height.
@@ -413,7 +496,7 @@ function layout() {
   const top = Math.max(0, header.getBoundingClientRect().bottom - svg.node().getBoundingClientRect().top);
   const bottom = footer.offsetHeight + 4;
 
-  const projection = d3.geoNaturalEarth1().fitExtent([[8, top + 8], [W - 8, H - bottom]], { type: 'Sphere' });
+  projection = d3.geoNaturalEarth1().fitExtent([[8, top + 8], [W - 8, H - bottom]], { type: 'Sphere' });
   const path = d3.geoPath(projection);
   const [[x0, y0], [x1, y1]] = path.bounds({ type: 'Sphere' });
 
@@ -423,6 +506,12 @@ function layout() {
     const part = mainPart(c.feature);
     c.anchor = path.centroid(part);
     c.box = countryBox(c.feature, part, path, gap);
+    const box = countryBox(c.feature, capitalPart(c), path, gap);
+    const points = c.capitalPoints.map(projection);
+    c.cardBox = [
+      [Math.min(box[0][0], ...points.map(p => p[0])), Math.min(box[0][1], ...points.map(p => p[1]))],
+      [Math.max(box[1][0], ...points.map(p => p[0])), Math.max(box[1][1], ...points.map(p => p[1]))],
+    ];
   }
 
   const availH = H - top - bottom;
@@ -441,6 +530,7 @@ function layout() {
     .translateExtent([[x0 - 40, y0 - top - slack], [x1 + 40, y1 + bottom + slack]]);
   svg.call(zoom.transform, homeTransform);
   render();
+  if (cardMode) requestAnimationFrame(() => focusSelected(true));
 }
 
 function updateHeaderHeight() {
@@ -452,12 +542,13 @@ function visibleRect() {
   const vv = window.visualViewport;
   const s = svg.node().getBoundingClientRect();
   const margin = window.innerWidth <= 640 ? 16 : 30;
-  const f = form.getBoundingClientRect();
-  const formOnTop = !form.hidden && f.top < window.innerHeight / 2;
+  const obstacle = cardMode || challengeSelection ? document.getElementById('study-card') : form;
+  const f = obstacle.getBoundingClientRect();
+  const formOnTop = !obstacle.hidden && (cardMode || challengeSelection ? window.innerWidth <= 640 : f.top < window.innerHeight / 2);
   const top = Math.max(s.top, header.getBoundingClientRect().bottom, formOnTop ? f.bottom : -Infinity);
   const bottom = Math.min(
     s.bottom,
-    !form.hidden && !formOnTop ? f.top : Infinity,
+    !obstacle.hidden && !formOnTop ? f.top : Infinity,
     vv ? vv.offsetTop + vv.height : Infinity,
   );
   return {
@@ -476,9 +567,10 @@ function keepSelectedVisible() {
   const t = d3.zoomTransform(svg.node());
   const r = visibleRect();
   if (r.x1 <= r.x0 || r.y1 <= r.y0) return;
-  let [[sx0, sy0], [sx1, sy1]] = [t.apply(c.box[0]), t.apply(c.box[1])];
+  const box = cardMode || challengeSubject === 'capitals' ? c.cardBox : c.box;
+  let [[sx0, sy0], [sx1, sy1]] = [t.apply(box[0]), t.apply(box[1])];
   if (sx1 - sx0 > r.x1 - r.x0 || sy1 - sy0 > r.y1 - r.y0) {
-    [sx0, sy0] = [sx1, sy1] = t.apply(c.anchor);
+    [sx0, sy0] = [sx1, sy1] = t.apply(cardMode || challengeSubject === 'capitals' ? projection(c.capitalPoints[0]) : c.anchor);
   }
   const dx = sx0 < r.x0 ? r.x0 - sx0 : sx1 > r.x1 ? r.x1 - sx1 : 0;
   const dy = sy0 < r.y0 ? r.y0 - sy0 : sy1 > r.y1 ? r.y1 - sy1 : 0;
@@ -487,17 +579,17 @@ function keepSelectedVisible() {
 
 // After jumping to the next country: re-zoom if it doesn't fit or would be tiny at the current zoom,
 // leaving plenty of surrounding map visible, and center the whole country in the free screen area.
-function focusSelected() {
+function focusSelected(force = false) {
   if (!selected) return;
   const c = byKey.get(selected);
   const t = d3.zoomTransform(svg.node());
   const r = visibleRect();
   const vw = r.x1 - r.x0, vh = r.y1 - r.y0;
   if (vw <= 0 || vh <= 0) return;
-  const [[bx0, by0], [bx1, by1]] = c.box;
+  const [[bx0, by0], [bx1, by1]] = cardMode || challengeSubject === 'capitals' ? c.cardBox : c.box;
   const fill = Math.min(vw / Math.max(bx1 - bx0, 1e-3), vh / Math.max(by1 - by0, 1e-3));
-  const ideal = Math.max(1, Math.min(fill * 0.3, MAX_FOCUS_ZOOM));
-  const keepZoom = t.k <= fill * 0.8 && t.k >= ideal / 3;
+  const ideal = Math.max(1, Math.min(fill * (cardMode ? 0.65 : 0.3), MAX_FOCUS_ZOOM));
+  const keepZoom = !force && t.k <= fill * 0.8 && t.k >= ideal / 3;
   if (keepZoom) {
     const [[sx0, sy0], [sx1, sy1]] = [t.apply([bx0, by0]), t.apply([bx1, by1])];
     if (sx0 >= r.x0 && sx1 <= r.x1 && sy0 >= r.y0 && sy1 <= r.y1) return;
@@ -516,8 +608,15 @@ function focusSelected() {
   svg.transition().duration(600).call(zoom.transform, target);
 }
 
-async function init() {
-  const world = await d3.json(MAP_URL);
+export async function init() {
+  if (typeof d3 === 'undefined' || typeof topojson === 'undefined') throw new Error('Map libraries could not be loaded');
+  svg = d3.select('#map');
+  viewport = svg.append('g');
+  countryLayer = viewport.append('g');
+  labelLayer = viewport.append('g');
+  capitalLayer = viewport.append('g');
+  homeTransform = d3.zoomIdentity;
+  const [world, info] = await Promise.all([d3.json(MAP_URL), d3.json('./countries.json')]);
   const features = topojson.feature(world, world.objects.countries).features;
   assignCrimeaToUkraine(world, features);
   applyMerges(world, features);
@@ -529,7 +628,15 @@ async function init() {
     const { display, names } = namesFor(name);
     f.key = name;
     f.display = display;
-    countries.push({ key: name, display, names, feature: f, anchor: [0, 0] });
+    const metadata = info[name === 'Kosovo' ? 'XK' : f.id];
+    if (!metadata) throw new Error(`Missing country information: ${name}`);
+    const localized = metadata.capitals.map(capital => capitalNames(capital, LANG));
+    countries.push({
+      key: name, display, names, feature: f, anchor: [0, 0], ...metadata,
+      capitalDisplay: localized.map(names => names[0]),
+      capitalGroups: capitalAnswerGroups(metadata.capitals),
+      capitalNames: [...new Set([...metadata.capitalNames, ...localized.flat()])],
+    });
   }
   byKey = new Map(countries.map(c => [c.key, c]));
 
@@ -540,7 +647,8 @@ async function init() {
     .filter(d => !EXCLUDED.has(d.properties.name))
     .on('click', (event, d) => {
       event.stopPropagation();
-      if (results) showTooltip(event, d);
+      if (cardMode) return;
+      if (results && !challengeSelection) showTooltip(event, d);
       else select(d.key);
     })
     .on('pointermove', (event, d) => { if (event.pointerType === 'mouse') showTooltip(event, d); })
@@ -556,7 +664,7 @@ async function init() {
       if (transform.k !== zoomK) { zoomK = transform.k; updateLabelSize(); }
     });
   svg.call(zoom).on('dblclick.zoom', null);
-  svg.on('click', () => { tooltip.hidden = true; select(null); });
+  svg.on('click', () => { tooltip.hidden = true; if (!cardMode) select(null); });
 
   load();
   layout();
@@ -580,22 +688,32 @@ async function init() {
   window.addEventListener('resize', onViewportChange);
   window.visualViewport?.addEventListener('resize', onViewportChange);
   window.visualViewport?.addEventListener('scroll', onViewportChange);
+  new ResizeObserver(onViewportChange).observe(document.getElementById('study-card'));
 }
 
 form.addEventListener('submit', e => { e.preventDefault(); commit(input.value); });
-document.getElementById('clear').addEventListener('click', () => commit(''));
+document.getElementById('clear').addEventListener('click', clearChallengeAnswer);
+input.addEventListener('input', updateClearButton);
 input.addEventListener('keydown', e => { if (e.key === 'Escape') select(null); });
 evaluateBtn.addEventListener('click', evaluate);
 resetBtn.addEventListener('click', reset);
-document.getElementById('help').addEventListener('click', () => { select(null); introDialog.showModal(); });
-introDialog.addEventListener('close', () => localStorage.setItem(INTRO_KEY, '1'));
+restartBtn.addEventListener('click', reset);
+document.getElementById('help').addEventListener('click', () => {
+  if (!cardMode) select(null);
+  document.getElementById('intro-steps').hidden = cardMode || challengeSubject !== 'countries';
+  introDialog.querySelector('.lead').textContent = cardMode ? t('cardHelp') :
+    challengeSubject === 'countries' ? t('introLead') : t('challengeHelp');
+  introDialog.querySelector('.note').hidden = cardMode && !learningMode;
+  introDialog.querySelector('.note').textContent = cardMode ? t('scheduleHelp') : t('introNote');
+  introDialog.showModal();
+});
 resultDialog.addEventListener('close', () => { if (resultDialog.returnValue === 'again') reset(); });
 for (const d of [introDialog, resultDialog]) {
   // Close when clicking the backdrop.
   d.addEventListener('click', e => { if (e.target === d) d.close(); });
 }
 
-function localize() {
+export function localize() {
   document.documentElement.lang = LANG;
   document.title = t('title');
   for (const el of document.querySelectorAll('[data-i18n]')) el.textContent = t(el.dataset.i18n);
@@ -606,11 +724,3 @@ function localize() {
   }
   document.getElementById('intro-steps').innerHTML = t('introSteps').map(s => `<li><span>${s}</span></li>`).join('');
 }
-
-localize();
-if (!localStorage.getItem(INTRO_KEY)) introDialog.showModal();
-
-init().catch(err => {
-  statusEl.textContent = t('loadError');
-  console.error(err);
-});

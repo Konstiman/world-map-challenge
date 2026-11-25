@@ -5,6 +5,7 @@ const STRINGS = {
     loadError: 'Failed to load map data. Check your internet connection.',
     evaluate: 'Evaluate',
     playAgain: 'Play again',
+    restart: 'Start again',
     help: 'How to play',
     placeholder: 'Which country is this?',
     save: 'Save',
@@ -12,7 +13,7 @@ const STRINGS = {
     named: 'Named: {n} / {total}',
     score: 'Score: {correct} / {total}',
     youWrote: 'you wrote “{guess}”',
-    notNamed: 'not named',
+    notNamed: 'Not answered',
     introLead: 'How many countries of the world can you name?',
     introSteps: [
       'Explore the map – drag to move around and zoom with the mouse wheel.',
@@ -25,7 +26,7 @@ const STRINGS = {
     outOf: 'out of {total} countries',
     correct: 'Correct',
     wrong: 'Wrong',
-    unnamed: 'Not named',
+    unnamed: 'Not answered',
     accuracy: '{pct} % of your answers were correct.',
     introStepsTouch: [
       'Explore the map – drag to move around and pinch to zoom.',
@@ -43,6 +44,7 @@ const STRINGS = {
     loadError: 'Die Karte konnte nicht geladen werden. Bitte prüfe deine Internetverbindung.',
     evaluate: 'Auswerten',
     playAgain: 'Neues Spiel',
+    restart: 'Neu anfangen',
     help: 'Spielanleitung',
     placeholder: 'Welches Land ist das?',
     save: 'Speichern',
@@ -50,7 +52,7 @@ const STRINGS = {
     named: 'Benannt: {n} / {total}',
     score: 'Ergebnis: {correct} / {total}',
     youWrote: 'du hast „{guess}“ geschrieben',
-    notNamed: 'nicht benannt',
+    notNamed: 'Nicht beantwortet',
     introLead: 'Wie viele Länder der Welt kannst du benennen?',
     introSteps: [
       'Erkunde die Karte – ziehe sie, um dich zu bewegen, und zoome mit dem Mausrad.',
@@ -63,7 +65,7 @@ const STRINGS = {
     outOf: 'von {total} Ländern',
     correct: 'Richtig',
     wrong: 'Falsch',
-    unnamed: 'Nicht benannt',
+    unnamed: 'Nicht beantwortet',
     accuracy: '{pct} % deiner Antworten waren richtig.',
     introStepsTouch: [
       'Erkunde die Karte – wische, um dich zu bewegen, und zoome mit zwei Fingern.',
@@ -81,6 +83,7 @@ const STRINGS = {
     loadError: 'Mapu se nepodařilo načíst. Zkontroluj připojení k internetu.',
     evaluate: 'Vyhodnotit',
     playAgain: 'Hrát znovu',
+    restart: 'Začít znovu',
     help: 'Jak hrát',
     placeholder: 'Jaký je to stát?',
     save: 'Uložit',
@@ -88,7 +91,7 @@ const STRINGS = {
     named: 'Pojmenováno: {n} / {total}',
     score: 'Skóre: {correct} / {total}',
     youWrote: 'napsal(a) jsi „{guess}“',
-    notNamed: 'nepojmenováno',
+    notNamed: 'Bez odpovědi',
     introLead: 'Kolik států světa dokážeš pojmenovat?',
     introSteps: [
       'Prozkoumej mapu – tažením se po ní pohybuješ, kolečkem myši přibližuješ.',
@@ -101,7 +104,7 @@ const STRINGS = {
     outOf: 'z {total} států',
     correct: 'Správně',
     wrong: 'Špatně',
-    unnamed: 'Nepojmenováno',
+    unnamed: 'Bez odpovědi',
     accuracy: '{pct} % tvých odpovědí bylo správně.',
     introStepsTouch: [
       'Prozkoumej mapu – posouvej ji prstem a přibližuj roztažením dvou prstů.',
@@ -114,6 +117,97 @@ const STRINGS = {
     verdicts: ['Každá cesta začíná prvním krokem!', 'Dobrý začátek!', 'Dobrá práce!', 'Působivé!', 'Zeměpisný expert!', 'Pán světa!'],
   },
 };
+
+Object.assign(STRINGS.en, {
+  mainMenu: 'Main menu', menuLead: 'Explore, challenge yourself, or learn a little every day.',
+  headerOptions: 'Options',
+  challenges: 'Challenges', learn: 'Learn',
+  challengeCountries: 'Name the Countries', challengeCapitals: 'Name the Capitals', challengeFlags: 'Match the Flag',
+  learnCountries: 'Country names', learnCapitals: 'Capitals', learnFlags: 'Flags',
+  checkAnswer: 'Check answer', dontKnow: "Don't know", tooEasy: 'Too easy', nextCard: 'Next card', resetLearning: 'Reset learning',
+  countryLabel: 'Country: {name}', capitalLabel: 'Capital: {name}', flagOption: 'Flag option {n}',
+  countryPrompt: 'Which country is highlighted?', capitalPrompt: 'What is the capital?',
+  allCapitalsPlaceholder: 'What are the capitals? Name them all.',
+  wrongCountry: 'Not quite. Country: {answer}', wrongCapital: 'Not quite. Capital: {answer}',
+  wrongCapitals: 'Not quite. Capitals: {answer}',
+  wrongFlag: 'Not quite. The correct flag of {country} is highlighted.',
+  youChoseFlag: 'you chose the flag of {guess}',
+  flagPrompt: 'Choose this country’s flag.', capitalPlaceholder: 'What is the capital?',
+  answerCorrect: 'Correct!', answerWrong: 'Not quite. Answer: {answer}', answerEasy: 'Removed from this learning deck.',
+  challengeProgress: 'Country {n} / {total} · Correct: {correct}',
+  learnProgress: 'Due: {due} · New: {fresh} · Too easy: {excluded}',
+  challengeDone: 'Challenge complete! {correct} / {total} correct.',
+  learningDone: 'All reviews done for now.', nextReview: 'Next review: {date}',
+  allEasy: 'All cards are marked too easy. Reset this deck to learn them again.',
+  resetConfirm: 'Reset all saved progress and too-easy cards for this learning mode?',
+  storageError: 'Could not read or save progress in this browser. Progress may not survive a reload.',
+  corruptProgress: 'Saved learning progress is invalid. Reset the affected decks to save new progress.',
+  flagError: 'A flag could not be loaded. Reload the page to try again.',
+  retryLoad: 'Retry loading',
+  challengeHelp: 'Explore the map and select any country. Save or revise answers in any order, then press Evaluate.',
+  cardHelp: 'Answer for the highlighted country, then continue to the next card. Capital dots show the capital locations. Flags have four choices.',
+  scheduleHelp: 'Learning: missed cards return after a few other cards. Correct cards return after 1, 3, 7, 14, then 30 days. “Too easy” excludes a card until you reset that deck. Progress is saved in this browser.',
+});
+Object.assign(STRINGS.de, {
+  mainMenu: 'Hauptmenü', menuLead: 'Entdecke die Welt, fordere dich heraus oder lerne jeden Tag ein wenig.',
+  headerOptions: 'Optionen',
+  challenges: 'Herausforderungen', learn: 'Lernen',
+  challengeCountries: 'Länder benennen', challengeCapitals: 'Hauptstädte benennen', challengeFlags: 'Flaggen zuordnen',
+  learnCountries: 'Ländernamen', learnCapitals: 'Hauptstädte', learnFlags: 'Flaggen',
+  checkAnswer: 'Antwort prüfen', dontKnow: 'Weiß ich nicht', tooEasy: 'Zu einfach', nextCard: 'Nächste Karte', resetLearning: 'Lernfortschritt zurücksetzen',
+  countryLabel: 'Land: {name}', capitalLabel: 'Hauptstadt: {name}', flagOption: 'Flagge {n}',
+  countryPrompt: 'Welches Land ist markiert?', capitalPrompt: 'Wie heißt die Hauptstadt?',
+  allCapitalsPlaceholder: 'Wie heißen die Hauptstädte? Nenne sie alle.',
+  wrongCountry: 'Nicht ganz. Land: {answer}', wrongCapital: 'Nicht ganz. Hauptstadt: {answer}',
+  wrongCapitals: 'Nicht ganz. Hauptstädte: {answer}',
+  wrongFlag: 'Nicht ganz. Die richtige Flagge von {country} ist markiert.',
+  youChoseFlag: 'du hast die Flagge von {guess} gewählt',
+  flagPrompt: 'Wähle die Flagge dieses Landes.', capitalPlaceholder: 'Wie heißt die Hauptstadt?',
+  answerCorrect: 'Richtig!', answerWrong: 'Nicht ganz. Antwort: {answer}', answerEasy: 'Aus diesem Lernstapel entfernt.',
+  challengeProgress: 'Land {n} / {total} · Richtig: {correct}',
+  learnProgress: 'Fällig: {due} · Neu: {fresh} · Zu einfach: {excluded}',
+  challengeDone: 'Geschafft! {correct} / {total} richtig.',
+  learningDone: 'Alle Wiederholungen für heute erledigt.', nextReview: 'Nächste Wiederholung: {date}',
+  allEasy: 'Alle Karten sind zu einfach. Setze den Stapel zurück, um sie erneut zu lernen.',
+  resetConfirm: 'Den gesamten Lernfortschritt und alle zu einfachen Karten dieses Modus zurücksetzen?',
+  storageError: 'Der Fortschritt konnte nicht gelesen oder gespeichert werden und geht beim Neuladen möglicherweise verloren.',
+  corruptProgress: 'Der gespeicherte Lernfortschritt ist ungültig. Setze die betroffenen Stapel zurück.',
+  flagError: 'Eine Flagge konnte nicht geladen werden. Lade die Seite erneut.',
+  retryLoad: 'Erneut laden',
+  challengeHelp: 'Erkunde die Karte und wähle ein Land. Speichere oder ändere Antworten in beliebiger Reihenfolge und drücke dann Auswerten.',
+  cardHelp: 'Antworte für das markierte Land und gehe zur nächsten Karte. Punkte markieren die Hauptstädte. Bei Flaggen gibt es vier Optionen.',
+  scheduleHelp: 'Lernen: Falsche Antworten werden nach einigen Karten wiederholt, richtige nach 1, 3, 7, 14 und dann 30 Tagen. „Zu einfach“ entfernt die Karte bis zum Zurücksetzen. Der Fortschritt wird in diesem Browser gespeichert.',
+});
+Object.assign(STRINGS.cs, {
+  mainMenu: 'Hlavní menu', menuLead: 'Otestuj svoje znalosti ve Výzvách nebo se procvičuj v módu Učení.',
+  headerOptions: 'Možnosti',
+  challenges: 'Výzvy', learn: 'Učení',
+  challengeCountries: 'Pojmenuj státy', challengeCapitals: 'Pojmenuj hlavní města', challengeFlags: 'Poznej vlajku',
+  learnCountries: 'Názvy států', learnCapitals: 'Hlavní města', learnFlags: 'Vlajky',
+  checkAnswer: 'Ověřit odpověď', dontKnow: 'Nevím', tooEasy: 'Příliš snadné', nextCard: 'Další karta', resetLearning: 'Obnovit učení',
+  countryLabel: 'Stát: {name}', capitalLabel: 'Hlavní město: {name}', flagOption: 'Vlajka {n}',
+  countryPrompt: 'Který stát je zvýrazněn?', capitalPrompt: 'Jaké je hlavní město?',
+  allCapitalsPlaceholder: 'Jaká jsou hlavní města? Vyjmenuj je všechna.',
+  wrongCountry: 'Ne tak docela. Stát: {answer}', wrongCapital: 'Ne tak docela. Hlavní město: {answer}',
+  wrongCapitals: 'Ne tak docela. Hlavní města: {answer}',
+  wrongFlag: 'Ne tak docela. Správná vlajka je zvýrazněna.',
+  youChoseFlag: 'vybraná vlajka: {guess}',
+  flagPrompt: 'Vyber vlajku tohoto státu.', capitalPlaceholder: 'Jaké je hlavní město?',
+  answerCorrect: 'Správně!', answerWrong: 'Ne tak docela. Odpověď: {answer}', answerEasy: 'Karta byla vyřazena z tohoto balíčku.',
+  challengeProgress: 'Stát {n} / {total} · Správně: {correct}',
+  learnProgress: 'K opakování: {due} · Nové: {fresh} · Snadné: {excluded}',
+  challengeDone: 'Výzva dokončena! Správně {correct} / {total}.',
+  learningDone: 'Prozatím je všechno zopakováno.', nextReview: 'Další opakování: {date}',
+  allEasy: 'Všechny karty jsou příliš snadné. Pro další učení obnov tento balíček.',
+  resetConfirm: 'Smazat celý postup učení a obnovit všechny snadné karty v tomto režimu?',
+  storageError: 'Postup nelze přečíst nebo uložit v tomto prohlížeči. Po obnovení stránky může být ztracen.',
+  corruptProgress: 'Uložený postup učení je neplatný. Obnov dotčené balíčky pro další ukládání.',
+  flagError: 'Vlajku se nepodařilo načíst. Zkus obnovit stránku.',
+  retryLoad: 'Načíst znovu',
+  challengeHelp: 'Prozkoumej mapu a vyber libovolný stát. Odpovědi ukládej nebo měň v libovolném pořadí a nakonec stiskni Vyhodnotit.',
+  cardHelp: 'Odpověz pro zvýrazněný stát a pokračuj na další kartu. Body ukazují polohu hlavních měst. U vlajek vybíráš ze čtyř možností.',
+  scheduleHelp: 'Učení: chybné odpovědi se opakují po několika kartách, správné po 1, 3, 7, 14 a pak 30 dnech. „Příliš snadné“ vyřadí kartu až do obnovení balíčku. Postup se ukládá v tomto prohlížeči.',
+});
 
 // Map name -> [German names, Czech names]. The first name is displayed, the rest are accepted alternatives.
 const COUNTRY_NAMES = {
@@ -353,7 +447,7 @@ const COUNTRY_NAMES = {
   'Sint Maarten': ['Sint Maarten', 'Sint Maarten'],
 };
 
-const LANG = (() => {
+export const LANG = (() => {
   for (const l of navigator.languages || [navigator.language || 'en']) {
     const code = l.slice(0, 2).toLowerCase();
     if (STRINGS[code]) return code;
@@ -362,16 +456,16 @@ const LANG = (() => {
 })();
 
 // Touch devices get touch-specific variants of strings (key + 'Touch') where available.
-const IS_TOUCH = matchMedia('(pointer: coarse)').matches;
+export const IS_TOUCH = matchMedia('(pointer: coarse)').matches;
 
-function t(key, vars = {}) {
+export function t(key, vars = {}) {
   const pick = k => STRINGS[LANG][k] ?? STRINGS.en[k];
   const s = (IS_TOUCH && pick(key + 'Touch')) || pick(key);
   return typeof s === 'string' ? s.replace(/\{(\w+)\}/g, (_, k) => vars[k]) : s;
 }
 
 // Names of a country in the current language (empty for English, which uses ALIASES in game.js).
-function localNames(mapName) {
+export function localNames(mapName) {
   const idx = { de: 0, cs: 1 }[LANG];
   const entry = COUNTRY_NAMES[mapName];
   return idx === undefined || !entry ? [] : entry[idx].split('|');
