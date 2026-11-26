@@ -1,7 +1,7 @@
-import { LANG, t, localNames } from './i18n.js';
-import { normalize, levenshtein, tolerance, allCapitalsAreCorrect } from './answers.js';
-import { capitalNames, capitalAnswerGroups } from './capitals.js';
-import { prepareFlagNeighbors } from './flags.js';
+import { LANG, t, localNames } from './i18n.js?version=7';
+import { normalize, levenshtein, tolerance, allCapitalsAreCorrect } from './answers.js?version=7';
+import { capitalNames, capitalAnswerGroups } from './capitals.js?version=7';
+import { prepareFlagNeighbors } from './flags.js?version=7';
 
 const MAP_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json';
 const STORAGE_KEY = 'name-the-countries';
@@ -629,7 +629,18 @@ export async function init() {
   labelLayer = viewport.append('g');
   capitalLayer = viewport.append('g');
   homeTransform = d3.zoomIdentity;
-  const [world, info] = await Promise.all([d3.json(MAP_URL), d3.json('./countries.json')]);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  let world, info;
+  try {
+    [world, info] = await Promise.all([
+      d3.json(MAP_URL, { signal: controller.signal }),
+      d3.json('./countries.json?version=7', { signal: controller.signal }),
+    ]);
+  } finally {
+    controller.abort();
+    clearTimeout(timer);
+  }
   const features = topojson.feature(world, world.objects.countries).features;
   assignCrimeaToUkraine(world, features);
   applyMerges(world, features);

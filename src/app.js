@@ -1,14 +1,14 @@
-import { LANG, t, setLanguage } from './i18n.js';
+import { LANG, t, setLanguage } from './i18n.js?version=7';
 import {
   init, localize, countries, isCorrect, showChallenge, showCard,
   saveChallengeAnswer, clearChallengeAnswer, countryDistance,
-} from './game.js';
-import { allCapitalsAreCorrect } from './answers.js';
+} from './game.js?version=7';
+import { allCapitalsAreCorrect } from './answers.js?version=7';
 import {
   nextCard, review, validateProgress, nextReviewTime, alignReviewTime, startNextDay,
   CONTINENTS, learningCountries, learningSummary, validateLearningSettings,
-} from './learning.js';
-import { shuffled, flagChoices } from './flags.js';
+} from './learning.js?version=7';
+import { shuffled, flagChoices } from './flags.js?version=7';
 
 const STORAGE_KEY = 'world-map-learning-v1';
 const LANGUAGE_KEY = 'world-map-language-v1';
@@ -516,8 +516,6 @@ resetDeck.addEventListener('click', () => {
   settingsDialog.close();
 });
 document.getElementById('menu-button').addEventListener('click', openMenu);
-document.getElementById('retry-load').addEventListener('click', () => location.reload());
-menu.addEventListener('cancel', event => event.preventDefault());
 for (const button of menu.querySelectorAll('[data-mode]')) {
   button.addEventListener('click', () => start(button.dataset.mode));
 }
@@ -544,16 +542,11 @@ localize();
 loadProgress();
 loadLearningSettings();
 openMenu();
-init().then(() => {
+export const ready = init().then(() => {
   for (const button of menu.querySelectorAll('[data-mode]')) button.disabled = false;
   if (menu.open && document.activeElement === menu) {
     menu.querySelector('[data-mode]').focus({ preventScroll: true });
   }
   document.getElementById('menu-status').textContent = '';
   document.getElementById('evaluate').hidden = true;
-}).catch(error => {
-  console.error(error);
-  status.textContent = t('loadError');
-  document.getElementById('menu-status').textContent = t('loadError');
-  document.getElementById('retry-load').hidden = false;
 });

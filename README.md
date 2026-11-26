@@ -65,16 +65,20 @@ The interface, country names and capital names follow browser language preferenc
 With Node.js 22 or newer installed, run the focused tests from the project folder:
 
 ```sh
-node --test src/learning.test.mjs
+node --test src/*.test.mjs
 ```
 
-Tests are optional when simply running the app. Loading and browser-storage errors are shown explicitly.
+Tests are optional when simply running the app. Loading and browser-storage errors are shown explicitly. Startup failures (including failed JavaScript imports or a 10-second loading timeout) show **Retry loading**, which requests a fresh page without deleting saved answers or learning progress.
 
 ## Project layout and deployment
 
 All deployable files live in `src/`: the HTML page, JavaScript modules, stylesheet, country data, flags, favicon and social preview image. The test file also lives in `src/`, but Firebase excludes `*.test.mjs` files from deployment. Documentation and Firebase configuration stay in the project root and are not deployed.
 
-Firebase Hosting is configured to publish `src/` as the website root. Existing asset URLs and the fallback to `/index.html` are unchanged. The Firebase project remains `konsti-world-map`, as configured in `.firebaserc`.
+Firebase Hosting is configured to publish `src/` as the website root. Existing asset paths and the fallback to `/index.html` are unchanged. The Firebase project remains `konsti-world-map`, as configured in `.firebaserc`.
+
+HTML, JavaScript, CSS and JSON require cache revalidation so normal reloads pick up deployments, including on iOS. All local module imports and country metadata share a version query; increment that version together with the bootstrap script URL when changing these files, to bypass assets cached under older hosting settings. Increment the stylesheet version when changing CSS.
+
+`Cache-Control: no-cache` allows storage and reuse of cached files, but requires checking with the server before reuse. Unchanged files can return `304 Not Modified` without downloading their contents again. This adds a network round trip, not a full download on every visit. Flags, images and external map libraries retain their existing caching policies.
 
 To deploy, run this from the project root after signing in to the Firebase CLI:
 
