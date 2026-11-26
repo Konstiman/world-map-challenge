@@ -4,11 +4,15 @@ import {
   saveChallengeAnswer, clearChallengeAnswer, countryDistance,
 } from './game.js';
 import { allCapitalsAreCorrect } from './answers.js';
-import { nextCard, review, validateProgress, nextReviewTime, alignReviewTime, startNextDay } from './learning.js';
+import {
+  nextCard, review, validateProgress, nextReviewTime, alignReviewTime, startNextDay,
+  CONTINENTS, learningCountries, learningSummary, validateLearningSettings,
+} from './learning.js';
 import { shuffled, flagChoices } from './flags.js';
 
 const STORAGE_KEY = 'world-map-learning-v1';
 const LANGUAGE_KEY = 'world-map-language-v1';
+const SETTINGS_KEY = 'world-map-learning-settings-v1';
 const menu = document.getElementById('main-menu');
 const languageSelect = document.getElementById('language');
 const panel = document.getElementById('study-card');
@@ -22,6 +26,9 @@ const next = document.getElementById('next-card');
 const easy = document.getElementById('too-easy');
 const dontKnow = document.getElementById('dont-know');
 const resetDeck = document.getElementById('reset-deck');
+const settingsButton = document.getElementById('learning-settings-button');
+const settingsDialog = document.getElementById('learning-settings');
+const continentOptions = document.getElementById('continent-options');
 const clearAnswer = document.getElementById('clear-answer');
 const clearFlag = document.getElementById('clear-flag');
 const headerOptions = document.getElementById('header-options');
@@ -35,6 +42,7 @@ const modeNames = {
 };
 
 let progress = {};
+let learningSettings = {};
 let mode = null;
 let current = null;
 let order = [];
@@ -45,7 +53,7 @@ let reviewTimer = null;
 const invalidDecks = new Set();
 
 function notify(key, error) {
-  for (const id of ['notice', 'menu-notice']) {
+  for (const id of ['notice', 'menu-notice', 'settings-notice']) {
     const notice = document.getElementById(id);
     notice.textContent = t(key);
     notice.dataset.reason = key;
@@ -95,7 +103,7 @@ function saveProgress() {
   }
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
-    for (const id of ['notice', 'menu-notice']) {
+    for (const id of ['notice', 'menu-notice', 'settings-notice']) {
       const notice = document.getElementById(id);
       if (['storageError', 'corruptProgress'].includes(notice.dataset.reason)) notice.hidden = true;
     }
@@ -107,6 +115,70 @@ function saveProgress() {
 function isLearning() { return mode?.startsWith('learn-'); }
 function subject() { return mode.split('-')[1]; }
 function deck() { return progress[mode] ||= {}; }
+function selectedContinents() { return learningSettings[mode] || CONTINENTS; }
+function selectedCountries() { return learningCountries(countries, selectedContinents()); }
+
+function loadLearningSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) learningSettings = validateLearningSettings(JSON.parse(raw));
+  } catch (error) {
+    notify('learningSettingsError', error);
+  }
+}
+
+function saveLearningSettings() {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(learningSettings));
+    for (const id of ['notice', 'menu-notice', 'settings-notice']) {
+      const notice = document.getElementById(id);
+      if (notice.dataset.reason === 'learningSettingsError') notice.hidden = true;
+    }
+  } catch (error) {
+    notify('learningSettingsError', error);
+  }
+}
+
+function updateSettingsProgress() {
+  const summary = learningSummary(selectedCountries(), deck());
+  const number = new Intl.NumberFormat(navigator.languages);
+  document.getElementById('settings-progress-scope').textContent = t('selectedProgress', { mode: t(modeNames[mode]) });
+  for (const key of ['fresh', 'due', 'scheduled', 'excluded']) {
+    document.getElementById(`settings-${key}`).textContent = number.format(summary[key]);
+  }
+  const reviewed = summary.total - summary.fresh;
+  document.getElementById('settings-reviewed').textContent = t('reviewedProgress', {
+    reviewed: number.format(reviewed), total: number.format(summary.total),
+  });
+  const bar = document.getElementById('settings-progress-bar');
+  bar.max = summary.total || 1;
+  bar.value = reviewed;
+}
+
+function openLearningSettings() {
+  if (!isLearning()) return;
+  clearTimeout(reviewTimer);
+  closeHeaderOptions();
+  document.getElementById('settings-mode').textContent = t(modeNames[mode]);
+  continentOptions.replaceChildren();
+  for (const continent of CONTINENTS) {
+    const label = document.createElement('label');
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.value = continent;
+    input.checked = selectedContinents().includes(continent);
+    const name = document.createElement('span');
+    name.textContent = t(continent);
+    const count = document.createElement('small');
+    count.textContent = t('continentCardCount', {
+      count: new Intl.NumberFormat(navigator.languages).format(learningCountries(countries, [continent]).length),
+    });
+    label.append(input, name, count);
+    continentOptions.append(label);
+  }
+  updateSettingsProgress();
+  settingsDialog.showModal();
+}
 
 function flag(country, alt) {
   const image = document.createElement('img');
@@ -136,14 +208,7 @@ function showInfo(reveal = false) {
 
 function updateProgress() {
   const el = document.getElementById('card-progress');
-  const cards = deck();
-  const now = Date.now();
-  el.textContent = t('learnProgress', {
-    due: countries.filter(c => cards[c.key] && !cards[c.key].excluded &&
-      (cards[c.key].due <= now || cards[c.key].availableEarly)).length,
-    fresh: countries.filter(c => !cards[c.key]).length,
-    excluded: countries.filter(c => cards[c.key]?.excluded).length,
-  });
+  el.textContent = t('learnProgress', learningSummary(selectedCountries(), deck()));
 }
 
 function showFlagOptions(saved = '', evaluated = false) {
@@ -226,11 +291,13 @@ function wrongAnswer(revealOnly = false) {
 }
 
 function showCompletion(now) {
-  const active = countries.map(c => deck()[c.key]).filter(c => c && !c.excluded);
+  const selected = selectedCountries();
+  const active = selected.map(c => deck()[c.key]).filter(c => c && !c.excluded);
   completion.hidden = false;
   panel.classList.add('learning-completed');
-  document.getElementById('completion-title').textContent = t('learningDone');
-  document.getElementById('completion-summary').textContent = t(active.length ? 'learningDoneHelp' : 'allEasy');
+  document.getElementById('completion-title').textContent = t(selected.length ? 'learningDone' : 'noContinentsTitle');
+  document.getElementById('completion-summary').textContent =
+    t(!selected.length ? 'noContinentsHelp' : active.length ? 'learningDoneHelp' : 'allEasy');
   document.getElementById('completion-schedule').hidden = !active.length;
   document.getElementById('completion-early').hidden = !active.length;
   if (!active.length) return;
@@ -352,7 +419,7 @@ function start(selectedMode) {
   document.getElementById('card-progress').hidden = !isLearning();
   clearAnswer.hidden = true;
   clearFlag.hidden = true;
-  resetDeck.hidden = !isLearning();
+  settingsButton.hidden = !isLearning();
   panel.hidden = !isLearning();
   if (!isLearning()) {
     showChallenge(subject(), subject() === 'countries' ? null : showChallengeEditor);
@@ -362,7 +429,7 @@ function start(selectedMode) {
   if (isLearning()) {
     for (const card of Object.values(deck())) if (card.retry) card.availableAfter = 0;
   }
-  order = shuffled(countries.map(c => c.key));
+  order = shuffled(selectedCountries().map(c => c.key));
   advance();
 }
 
@@ -372,6 +439,8 @@ function openMenu() {
   document.getElementById('namer').hidden = true;
   document.getElementById('tooltip').hidden = true;
   if (!menu.open) menu.showModal();
+  const first = menu.querySelector('[data-mode]');
+  (first.disabled ? menu : first).focus({ preventScroll: true });
 }
 
 function closeHeaderOptions() {
@@ -410,12 +479,12 @@ answerForm.addEventListener('submit', event => {
 next.addEventListener('click', advance);
 startTomorrow.addEventListener('click', () => {
   if (!isLearning() || current || startTomorrow.disabled) return;
-  startNextDay(deck());
+  startNextDay(deck(), Date.now(), order);
   saveProgress();
   advance();
 });
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && isLearning() && !current && !menu.open) advance();
+  if (!document.hidden && isLearning() && !current && !menu.open && !settingsDialog.open) advance();
 });
 dontKnow.addEventListener('click', () => rate('wrong', null, true));
 clearAnswer.addEventListener('click', clearChallengeAnswer);
@@ -427,12 +496,24 @@ easy.addEventListener('click', () => {
   saveProgress();
   advance();
 });
+settingsButton.addEventListener('click', openLearningSettings);
+continentOptions.addEventListener('change', () => {
+  learningSettings[mode] = [...continentOptions.querySelectorAll('input:checked')].map(input => input.value);
+  saveLearningSettings();
+  order = shuffled(selectedCountries().map(c => c.key));
+  updateSettingsProgress();
+  updateProgress();
+});
+settingsDialog.addEventListener('close', () => {
+  if (isLearning() && !menu.open && (!current || !order.includes(current.key))) advance();
+});
 resetDeck.addEventListener('click', () => {
   if (!confirm(t('resetConfirm'))) return;
   progress[mode] = {};
   invalidDecks.delete(mode);
   saveProgress();
-  start(mode);
+  current = null;
+  settingsDialog.close();
 });
 document.getElementById('menu-button').addEventListener('click', openMenu);
 document.getElementById('retry-load').addEventListener('click', () => location.reload());
@@ -461,9 +542,13 @@ try {
 languageSelect.value = LANG;
 localize();
 loadProgress();
+loadLearningSettings();
 openMenu();
 init().then(() => {
   for (const button of menu.querySelectorAll('[data-mode]')) button.disabled = false;
+  if (menu.open && document.activeElement === menu) {
+    menu.querySelector('[data-mode]').focus({ preventScroll: true });
+  }
   document.getElementById('menu-status').textContent = '';
   document.getElementById('evaluate').hidden = true;
 }).catch(error => {

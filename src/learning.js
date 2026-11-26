@@ -1,5 +1,48 @@
 export const DAY = 24 * 60 * 60 * 1000;
 const INTERVALS = [1, 3, 7, 14, 30];
+const CONTINENT_CODES = {
+  africa: 'dz ao bj bw bf bi cv cm cf td km cd cg ci dj eg gq er sz et ga gm gh gn gw ke ls lr ly mg mw ml mr mu ma mz na ne ng rw st sn sc sl so za ss sd tz tg tn ug zm zw',
+  asia: 'af am az bh bd bt bn kh cn cy ge in id ir iq il jp jo kz kw kg la lb my mv mn mm np kp om pk ph qa sa sg kr lk sy tw tj th tl tr tm ae uz vn ye',
+  europe: 'ad al at by be ba bg hr cz dk ee fi fr de gr hu is ie it lv li lt lu mt md mc me nl mk no pl pt ro ru sm rs sk si es se ch ua gb va xk',
+  northAmerica: 'ag bs bb bz ca cr cu dm do sv gd gt ht hn jm mx ni pa kn lc vc tt us gl',
+  southAmerica: 'ar bo br cl co ec gy py pe sr uy ve',
+  oceania: 'au fj ki mh fm nr nz pw pg ws sb to tv vu',
+};
+export const CONTINENTS = Object.keys(CONTINENT_CODES);
+const continentByCode = new Map(Object.entries(CONTINENT_CODES).flatMap(([continent, codes]) =>
+  codes.split(' ').map(code => [code, continent])));
+
+export function learningCountries(countries, selected = CONTINENTS) {
+  return countries.filter(country => {
+    const continent = continentByCode.get(country.code);
+    if (!continent) throw new Error(`Missing continent for country: ${country.code}`);
+    return selected.includes(continent);
+  });
+}
+
+export function validateLearningSettings(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid learning settings');
+  for (const [mode, selected] of Object.entries(value)) {
+    if (!['learn-countries', 'learn-capitals', 'learn-flags'].includes(mode) ||
+      !Array.isArray(selected) || new Set(selected).size !== selected.length ||
+      selected.some(continent => !CONTINENTS.includes(continent))) {
+      throw new Error('Invalid learning continents');
+    }
+  }
+  return value;
+}
+
+export function learningSummary(countries, progress, now = Date.now()) {
+  const summary = { total: countries.length, fresh: 0, due: 0, scheduled: 0, excluded: 0 };
+  for (const country of countries) {
+    const card = progress[country.key];
+    if (!card) summary.fresh++;
+    else if (card.excluded) summary.excluded++;
+    else if (card.due <= now || card.availableEarly) summary.due++;
+    else summary.scheduled++;
+  }
+  return summary;
+}
 
 export function nextReviewTime(now = Date.now(), days = 1) {
   const date = new Date(now);
@@ -15,10 +58,11 @@ export function alignReviewTime(due) {
     date.getSeconds() === 0 && date.getMilliseconds() === 0 ? due : nextReviewTime(due);
 }
 
-export function startNextDay(progress, now = Date.now()) {
+export function startNextDay(progress, now = Date.now(), keys = Object.keys(progress)) {
   const cutoff = nextReviewTime(now);
-  for (const card of Object.values(progress)) {
-    if (!card.excluded && card.due > now && card.due <= cutoff) card.availableEarly = true;
+  for (const key of keys) {
+    const card = progress[key];
+    if (card && !card.excluded && card.due > now && card.due <= cutoff) card.availableEarly = true;
   }
 }
 

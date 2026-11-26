@@ -1,10 +1,70 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { DAY, review, nextCard, validateProgress, nextReviewTime, alignReviewTime, startNextDay } from './learning.js';
+import {
+  DAY, review, nextCard, validateProgress, nextReviewTime, alignReviewTime, startNextDay,
+  CONTINENTS, learningCountries, learningSummary, validateLearningSettings,
+} from './learning.js';
 import { capitalIsCorrect, allCapitalsAreCorrect } from './answers.js';
 import { capitalNames, capitalAnswerGroups } from './capitals.js';
 import { prepareFlagNeighbors, flagChoices } from './flags.js';
+
+test('continent filters cover every country exactly once and support an empty selection', () => {
+  const countries = Object.entries(JSON.parse(readFileSync(new URL('./countries.json', import.meta.url), 'utf8')))
+    .map(([key, country]) => ({ key, ...country }));
+  assert.deepEqual(learningCountries(countries), countries);
+  const groups = CONTINENTS.flatMap(continent => learningCountries(countries, [continent]));
+  assert.equal(groups.length, countries.length);
+  assert.equal(new Set(groups.map(c => c.key)).size, countries.length);
+  assert.deepEqual(learningCountries(countries, []), []);
+  const north = learningCountries(countries, ['northAmerica']);
+  assert.ok(north.some(c => c.code === 'cr'));
+  assert.ok(north.some(c => c.code === 'cu'));
+  assert.ok(learningCountries(countries, ['europe']).some(c => c.code === 'ru'));
+  for (const code of ['tr', 'cy', 'kz', 'am', 'az', 'ge']) {
+    assert.ok(learningCountries(countries, ['asia']).some(c => c.code === code), code);
+  }
+  assert.throws(() => learningCountries([{ code: 'unknown' }]));
+});
+
+test('learning settings persist separate mode selections and reject malformed settings', () => {
+  const settings = { 'learn-countries': ['europe'], 'learn-capitals': [], 'learn-flags': ['africa', 'asia'] };
+  assert.deepEqual(validateLearningSettings(JSON.parse(JSON.stringify(settings))), settings);
+  assert.deepEqual(validateLearningSettings({}), {});
+  for (const value of [null, [], { 'learn-countries': 'europe' }, { 'learn-flags': ['unknown'] },
+    { 'learn-capitals': ['asia', 'asia'] }, { 'challenge-countries': ['europe'] }]) {
+    assert.throws(() => validateLearningSettings(value));
+  }
+});
+
+test('filtered learning preserves hidden cards and excludes them from summaries and early start', () => {
+  const now = new Date(2026, 10, 26, 14).getTime();
+  const countries = [
+    { key: 'fresh', code: 'de' }, { key: 'due', code: 'fr' }, { key: 'early', code: 'it' },
+    { key: 'scheduled', code: 'es' }, { key: 'easy', code: 'at' }, { key: 'hidden', code: 'bo' },
+  ];
+  const progress = {
+    due: review(null, 'wrong', 0, now),
+    early: { ...review(null, 'correct', 0, now), availableEarly: true },
+    scheduled: review(null, 'correct', 0, now),
+    easy: review(null, 'easy', 0, now),
+    hidden: review(null, 'correct', 0, now),
+  };
+  const hidden = JSON.stringify(progress.hidden);
+  const selected = learningCountries(countries, ['europe']);
+  const keys = selected.map(c => c.key);
+  assert.deepEqual(learningSummary(selected, progress, now),
+    { total: 5, fresh: 1, due: 2, scheduled: 1, excluded: 1 });
+  assert.ok(keys.includes(nextCard(keys, progress, 4, now)));
+  startNextDay(progress, now, keys);
+  assert.equal(progress.scheduled.availableEarly, true);
+  assert.equal(JSON.stringify(progress.hidden), hidden);
+  assert.deepEqual(learningSummary([], progress, now),
+    { total: 0, fresh: 0, due: 0, scheduled: 0, excluded: 0 });
+  assert.equal(nextCard([], progress, 4, now), null);
+  assert.equal(nextCard(learningCountries(countries, ['southAmerica']).map(c => c.key),
+    progress, 4, progress.hidden.due), 'hidden');
+});
 
 test('flag neighbors cache exactly the ten nearest other countries', () => {
   const countries = Array.from({ length: 15 }, (_, i) => ({ key: String(i) }));

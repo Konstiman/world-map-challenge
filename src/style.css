@@ -245,8 +245,27 @@ button.primary:hover:not(:disabled) { background: #245a93; }
 .mode-icon { display: grid; place-items: center; width: 2.2rem; height: 2.2rem; flex-shrink: 0; border-radius: 9px; background: #eef5ff; font-size: 1.3rem; }
 .mode-categories section:last-child .mode-icon { background: #edf8f0; }
 #menu-status { text-align: center; color: #667; }
-#menu-notice { padding: .6rem; background: #fff2ce; color: #713f12; font-size: .85rem; }
+#menu-notice, #settings-notice { padding: .6rem; background: #fff2ce; color: #713f12; font-size: .85rem; }
 #retry-load { display: block; margin: 1rem auto 0; }
+
+#learning-settings { width: min(34rem, calc(100vw - 2rem)); }
+#learning-settings h2 { padding: 0 1.5rem; }
+.settings-close { position: absolute; top: .6rem; right: .6rem; width: 2rem; height: 2rem; padding: 0; border: none; background: transparent; font-size: 1.5rem; }
+#learning-settings h3 { margin: 1.3rem 0 .35rem; font-size: 1.1rem; color: #1d3557; }
+#learning-settings fieldset { margin: 0; padding: .8rem; border: 1px solid #d6e3f0; border-radius: 12px; }
+#learning-settings legend { padding: 0 .35rem; font-weight: 600; color: #1d3557; }
+.settings-help { margin: .3rem 0 .8rem; color: #52677c; font-size: .85rem; line-height: 1.5; }
+#continent-options { display: grid; gap: .35rem; }
+#continent-options label { display: flex; align-items: center; gap: .6rem; padding: .5rem; border-radius: 8px; background: #eef5ff; cursor: pointer; }
+#continent-options input { width: 1.1rem; height: 1.1rem; flex-shrink: 0; accent-color: #2b6cb0; }
+#continent-options small { margin-left: auto; color: #52677c; white-space: nowrap; }
+#settings-reviewed { margin: .6rem 0 .35rem; font-size: .9rem; color: #1d3557; }
+#settings-progress-bar { display: block; width: 100%; height: .75rem; accent-color: #2b6cb0; }
+.settings-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; margin-top: .75rem; }
+.stat.scheduled { background: #eef5ff; }
+.settings-reset { margin-top: 1.3rem; padding-top: 1rem; border-top: 1px solid #d6e3f0; }
+#reset-deck { color: #a22; border-color: #d9aaaa; white-space: normal; }
+#learning-settings .dialog-actions button { white-space: normal; }
 
 #study-card {
   position: fixed;

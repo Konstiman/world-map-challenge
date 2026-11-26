@@ -2,6 +2,8 @@
 
 A static browser game with six modes, selected from the main menu on every visit.
 
+The main menu initially focuses the first mode once the map is ready, not the language selector.
+
 ## Quick start
 
 You need Node.js 22 or newer, including npm and npx. No build step or project dependency installation is required.
@@ -42,13 +44,16 @@ Both capital challenge and capital learning require **all** listed capitals for 
 
 Learning decks are independent and saved in this browser:
 
-- Learning progress is shown in the header; **Reset learning** is in the header actions (the hamburger menu on mobile). Cards use input placeholders instead of duplicate text prompts, and hide **Check answer** after submission.
+- Learning progress is shown in the header; **Learning settings** is in the header actions (the hamburger menu on mobile). It contains continent checkboxes, a progress overview, and **Reset learning**. Cards use input placeholders instead of duplicate text prompts, and hide **Check answer** after submission.
+- Each learning mode remembers its own continent selection, with all six continents selected by default. Changes save immediately. Unchecking a continent hides its cards without deleting progress; rechecking it resumes its existing schedule. Selecting none pauses the deck and shows instructions for choosing continents.
+- The progress overview shows new, due, scheduled, and too-easy cards for the selected continents, plus the number reviewed at least once. Header counts, completion dates, and **Start the next day now** also respect the selection. Flag distractors keep their existing nearest-country selection.
+- Countries have one geographic continent: North America includes Central America and the Caribbean; Russia is grouped with Europe, and Türkiye, Cyprus, Kazakhstan, Armenia, Azerbaijan, and Georgia with Asia. Antarctica has no cards.
 - Country-name learning uses a shorter **Check** button, with **Don't know** beside it.
 - Each learning session starts with a random eligible country, then favors the geographically nearest country within the same review priority. Due reviews still precede new cards, and missed-card repetition keeps its existing spacing.
 - Learning modes offer **Don't know** to reveal the answer with neutral feedback and count it as a miss. Learning cards then repeat.
 - Missed cards reset their streak and return after four other answers. If no other cards are available, they repeat immediately.
 - Correct answers schedule reviews after 1, 3, 7, 14, then 30 calendar days (subsequent successes remain at 30 days), always at 04:00 local time. A learning day runs from 04:00 to 04:00, including across daylight-saving changes. Existing future review times are moved to the next 04:00 boundary.
-- **Too easy** appears only after a correct answer and excludes that card from the learning deck until **Reset learning** is used. Resetting one deck does not affect the others.
+- **Too easy** appears only after a correct answer and excludes that card from the learning deck until **Reset learning** is used inside **Learning settings**. Reset clears the entire current mode, including unselected continents, without changing continent selections or other modes.
 - A completed deck shows the next review date and scheduled card count, formatted using your browser locale. It automatically checks for new cards at 04:00 local time and when you return to the tab.
 - **Start the next day now** unlocks only the next day's scheduled cards in the current deck, without resetting progress, later reviews, or too-easy exclusions. Early-unlocked cards stay available after a reload; successful answers keep their intervals relative to their original scheduled day. If tomorrow has no scheduled cards, the button is disabled and the next review date is shown.
 - There is no account or cross-device synchronization.
