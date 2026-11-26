@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { DAY, review, nextCard, validateProgress } from './learning.js';
+import { DAY, review, nextCard, validateProgress, nextReviewTime, alignReviewTime, startNextDay } from './learning.js';
 import { capitalIsCorrect, allCapitalsAreCorrect } from './answers.js';
 import { capitalNames, capitalAnswerGroups } from './capitals.js';
 import { prepareFlagNeighbors, flagChoices } from './flags.js';
@@ -48,13 +48,71 @@ test('flag choices preserve nearby and legacy saved answers without duplicates',
 });
 
 test('successful reviews follow the defined schedule and cap at 30 days', () => {
+  const now = new Date(2026, 10, 26, 14, 23, 53).getTime();
   let card;
   for (const days of [1, 3, 7, 14, 30, 30]) {
-    card = review(card, 'correct', 0, 100);
-    assert.equal(card.due, 100 + days * DAY);
+    card = review(card, 'correct', 0, now);
+    assert.equal(card.due, new Date(2026, 10, 26 + days, 4).getTime());
   }
   assert.equal(nextCard(['a'], { a: card }, 0, card.due - 1), null);
   assert.equal(nextCard(['a'], { a: card }, 0, card.due), 'a');
+});
+
+test('review days start at 04:00, including before dawn, month boundaries and daylight saving', () => {
+  const timezone = process.env.TZ;
+  process.env.TZ = 'Europe/Berlin';
+  try {
+    for (const [now, expected, hours] of [
+      [new Date(2026, 2, 28, 4), new Date(2026, 2, 29, 4), 23],
+      [new Date(2026, 9, 24, 4), new Date(2026, 9, 25, 4), 25],
+      [new Date(2026, 10, 26, 3, 59), new Date(2026, 10, 26, 4)],
+      [new Date(2026, 10, 26, 4), new Date(2026, 10, 27, 4)],
+      [new Date(2026, 11, 31, 23), new Date(2027, 0, 1, 4)],
+    ]) {
+      assert.equal(review(null, 'correct', 0, now.getTime()).due, expected.getTime());
+      assert.equal(nextReviewTime(now.getTime()), expected.getTime());
+      if (hours) assert.equal((expected - now) / (60 * 60 * 1000), hours);
+    }
+  } finally {
+    if (timezone === undefined) delete process.env.TZ;
+    else process.env.TZ = timezone;
+  }
+});
+
+test('legacy review timestamps move to the next 04:00 boundary without repeatedly postponing', () => {
+  for (const [due, expected] of [
+    [new Date(2026, 10, 26, 14, 23, 53), new Date(2026, 10, 27, 4)],
+    [new Date(2026, 10, 26, 2), new Date(2026, 10, 26, 4)],
+    [new Date(2026, 10, 26, 4), new Date(2026, 10, 26, 4)],
+  ]) {
+    const aligned = alignReviewTime(due.getTime());
+    assert.equal(aligned, expected.getTime());
+    assert.equal(alignReviewTime(aligned), aligned);
+  }
+});
+
+test('starting tomorrow unlocks only its scheduled cards and survives reload without shortening later intervals', () => {
+  const now = new Date(2026, 10, 26, 14).getTime();
+  const tomorrow = new Date(2026, 10, 27, 4).getTime();
+  const progress = {
+    tomorrow: { ...review(null, 'correct', 0, now), due: tomorrow },
+    later: { ...review(null, 'correct', 0, now), due: new Date(2026, 10, 28, 4).getTime() },
+    easy: review(null, 'easy', 0, now),
+  };
+  const unchanged = JSON.stringify({ later: progress.later, easy: progress.easy });
+  assert.equal(nextCard(Object.keys(progress), progress, 0, now), null);
+  startNextDay(progress, now);
+  const restored = validateProgress({ deck: JSON.parse(JSON.stringify(progress)) }).deck;
+  assert.equal(nextCard(Object.keys(restored), restored, 0, now), 'tomorrow');
+  assert.equal(restored.tomorrow.due, tomorrow);
+  assert.equal(JSON.stringify({ later: restored.later, easy: restored.easy }), unchanged);
+  const correct = review(restored.tomorrow, 'correct', 1, now);
+  assert.equal(correct.due, new Date(2026, 10, 30, 4).getTime());
+  assert.equal(correct.availableEarly, undefined);
+  const wrong = review(restored.tomorrow, 'wrong', 1, now);
+  assert.equal(wrong.due, now);
+  assert.equal(nextCard(['tomorrow'], { tomorrow: wrong }, 5, now), 'tomorrow');
+  assert.throws(() => validateProgress({ deck: { tomorrow: { ...correct, availableEarly: 'yes' } } }));
 });
 
 test('missed cards return after other cards and reset their successful streak', () => {
@@ -64,7 +122,7 @@ test('missed cards return after other cards and reset their successful streak', 
   assert.equal(nextCard(['a', 'b'], progress, 2, 100), 'b');
   assert.equal(nextCard(['a', 'b'], progress, 5, 100), 'a');
   assert.equal(nextCard(['a'], progress, 2, 100, 'a'), 'a');
-  assert.equal(review(failed, 'correct', 6, 100).due, 100 + DAY);
+  assert.equal(review(failed, 'correct', 6, 100).due, nextReviewTime(100));
 });
 
 test('too-easy cards are excluded even when overdue and can be reset independently', () => {

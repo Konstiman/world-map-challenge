@@ -313,6 +313,33 @@ button.inline-clear {
 #card-feedback.correct { color: #247124; }
 #card-feedback.wrong { color: #a22; }
 .card-actions { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: flex-end; margin-left: auto; }
+#study-card.learning-completed { padding: 1.5rem; }
+.learning-completed .card-result { display: none; }
+#learning-complete { text-align: center; line-height: 1.5; }
+.completion-icon {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto .75rem;
+  border-radius: 50%;
+  background: #e7f5e7;
+  color: #247124;
+  font-size: 1.7rem;
+  font-weight: 700;
+}
+#completion-title { margin: 0; font-size: 1.3rem; color: #1d3557; }
+#completion-summary { margin: .5rem 0 1rem; color: #52677c; }
+#completion-schedule { padding: 1rem; border-radius: 12px; background: #eef5ff; }
+#completion-schedule p { margin: .35rem 0 0; }
+#completion-schedule .completion-label { margin: 0 0 .3rem; color: #52677c; font-size: .85rem; }
+#completion-date { display: block; font-weight: 700; color: #1d3557; }
+#completion-day, #completion-time { display: block; }
+#completion-time { margin-top: .2rem; font-size: 1.25rem; }
+#completion-count { color: #2b6cb0; }
+#completion-restart, #completion-early-help { color: #52677c; font-size: .85rem; }
+#start-next-day { margin-top: 1.2rem; white-space: normal; }
+#completion-early-help { margin: .6rem 0 0; }
 .capital-marker { fill: #c42626; stroke: #fff; pointer-events: none; }
 #notice {
   position: fixed;

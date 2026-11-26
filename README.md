@@ -47,9 +47,11 @@ Learning decks are independent and saved in this browser:
 - Each learning session starts with a random eligible country, then favors the geographically nearest country within the same review priority. Due reviews still precede new cards, and missed-card repetition keeps its existing spacing.
 - Learning modes offer **Don't know** to reveal the answer with neutral feedback and count it as a miss. Learning cards then repeat.
 - Missed cards reset their streak and return after four other answers. If no other cards are available, they repeat immediately.
-- Correct answers schedule reviews after 1, 3, 7, 14, then 30 days (subsequent successes remain at 30 days).
+- Correct answers schedule reviews after 1, 3, 7, 14, then 30 calendar days (subsequent successes remain at 30 days), always at 04:00 local time. A learning day runs from 04:00 to 04:00, including across daylight-saving changes. Existing future review times are moved to the next 04:00 boundary.
 - **Too easy** appears only after a correct answer and excludes that card from the learning deck until **Reset learning** is used. Resetting one deck does not affect the others.
-- A completed deck shows its next review time. Returning later resumes the due cards. There is no account or cross-device synchronization.
+- A completed deck shows the next review date and scheduled card count, formatted using your browser locale. It automatically checks for new cards at 04:00 local time and when you return to the tab.
+- **Start the next day now** unlocks only the next day's scheduled cards in the current deck, without resetting progress, later reviews, or too-easy exclusions. Early-unlocked cards stay available after a reload; successful answers keep their intervals relative to their original scheduled day. If tomorrow has no scheduled cards, the button is disabled and the next review date is shown.
+- There is no account or cross-device synchronization.
 
 The interface, country names and capital names follow browser language preferences (English, German or Czech) by default. The language selector at the bottom of the main menu (CZ, EN, DE) overrides this preference and remembers it in this browser. Changing language reloads the game and returns to the main menu without clearing saved answers or learning progress. English names and localized aliases are accepted. For countries with one capital, capital learning accepts that capital; for countries with multiple capitals, all are required in either capital mode. Yaren represents Nauru's seat of government, as Nauru has no official capital. Greenland remains visible on the map but is excluded from all challenges and learning decks; the active modes cover 196 countries.
 

@@ -1,6 +1,27 @@
 export const DAY = 24 * 60 * 60 * 1000;
 const INTERVALS = [1, 3, 7, 14, 30];
 
+export function nextReviewTime(now = Date.now(), days = 1) {
+  const date = new Date(now);
+  if (date.getHours() < 4) date.setDate(date.getDate() - 1);
+  date.setDate(date.getDate() + days);
+  date.setHours(4, 0, 0, 0);
+  return date.getTime();
+}
+
+export function alignReviewTime(due) {
+  const date = new Date(due);
+  return date.getHours() === 4 && date.getMinutes() === 0 &&
+    date.getSeconds() === 0 && date.getMilliseconds() === 0 ? due : nextReviewTime(due);
+}
+
+export function startNextDay(progress, now = Date.now()) {
+  const cutoff = nextReviewTime(now);
+  for (const card of Object.values(progress)) {
+    if (!card.excluded && card.due > now && card.due <= cutoff) card.availableEarly = true;
+  }
+}
+
 export function review(previous, rating, turn, now = Date.now()) {
   if (rating === 'easy') return { stage: 0, due: 0, retry: false, availableAfter: 0, excluded: true };
   if (rating === 'wrong') {
@@ -8,11 +29,13 @@ export function review(previous, rating, turn, now = Date.now()) {
   }
   if (rating !== 'correct') throw new Error('Invalid review rating');
   const stage = Math.min((previous?.stage || 0) + 1, INTERVALS.length);
-  return { stage, due: now + INTERVALS[stage - 1] * DAY, retry: false, availableAfter: 0, excluded: false };
+  const reviewedAt = previous?.availableEarly ? Math.max(now, previous.due) : now;
+  return { stage, due: nextReviewTime(reviewedAt, INTERVALS[stage - 1]), retry: false, availableAfter: 0, excluded: false };
 }
 
 export function nextCard(keys, progress, turn, now = Date.now(), lastKey = null, distance = null) {
-  const due = keys.filter(key => !progress[key]?.excluded && (progress[key]?.due || 0) <= now);
+  const due = keys.filter(key => !progress[key]?.excluded &&
+    ((progress[key]?.due || 0) <= now || progress[key]?.availableEarly));
   const ready = due.filter(key => !progress[key]?.retry || progress[key].availableAfter <= turn);
   // If only failed cards remain, repeat immediately rather than leaving the deck stuck.
   const pool = ready.length ? ready : due;
@@ -34,7 +57,8 @@ export function validateProgress(value) {
     for (const card of Object.values(deck)) {
       if (!card || !Number.isInteger(card.stage) || card.stage < 0 || card.stage > INTERVALS.length ||
         !Number.isFinite(card.due) || card.due < 0 || typeof card.excluded !== 'boolean' ||
-        typeof card.retry !== 'boolean' || !Number.isInteger(card.availableAfter) || card.availableAfter < 0) {
+        typeof card.retry !== 'boolean' || !Number.isInteger(card.availableAfter) || card.availableAfter < 0 ||
+        (card.availableEarly !== undefined && typeof card.availableEarly !== 'boolean')) {
         throw new Error('Invalid learning card');
       }
     }

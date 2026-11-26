@@ -4,7 +4,7 @@ import {
   saveChallengeAnswer, clearChallengeAnswer, countryDistance,
 } from './game.js';
 import { allCapitalsAreCorrect } from './answers.js';
-import { nextCard, review, validateProgress } from './learning.js';
+import { nextCard, review, validateProgress, nextReviewTime, alignReviewTime, startNextDay } from './learning.js';
 import { shuffled, flagChoices } from './flags.js';
 
 const STORAGE_KEY = 'world-map-learning-v1';
@@ -26,6 +26,8 @@ const clearAnswer = document.getElementById('clear-answer');
 const clearFlag = document.getElementById('clear-flag');
 const headerOptions = document.getElementById('header-options');
 const headerActions = document.getElementById('header-actions');
+const completion = document.getElementById('learning-complete');
+const startTomorrow = document.getElementById('start-next-day');
 const modeNames = {
   'challenge-countries': 'challengeCountries', 'challenge-capitals': 'challengeCapitals',
   'challenge-flags': 'challengeFlags', 'learn-countries': 'learnCountries',
@@ -54,6 +56,7 @@ function notify(key, error) {
 
 function loadProgress() {
   let parsed;
+  let rescheduled = false;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
@@ -69,12 +72,20 @@ function loadProgress() {
       validateProgress({ [key]: deck });
       progress[key] = deck;
       // Retry spacing counts answers in this session; failed cards remain due after a reload.
-      for (const card of Object.values(deck)) if (card.retry) card.availableAfter = 0;
+      for (const card of Object.values(deck)) {
+        if (card.retry) card.availableAfter = 0;
+        else if (!card.excluded && card.due > Date.now()) {
+          const due = alignReviewTime(card.due);
+          rescheduled ||= due !== card.due;
+          card.due = due;
+        }
+      }
     } catch (error) {
       invalidDecks.add(key);
       notify('corruptProgress', error);
     }
   }
+  if (rescheduled && !invalidDecks.size) saveProgress();
 }
 
 function saveProgress() {
@@ -128,7 +139,8 @@ function updateProgress() {
   const cards = deck();
   const now = Date.now();
   el.textContent = t('learnProgress', {
-    due: countries.filter(c => cards[c.key] && !cards[c.key].excluded && cards[c.key].due <= now).length,
+    due: countries.filter(c => cards[c.key] && !cards[c.key].excluded &&
+      (cards[c.key].due <= now || cards[c.key].availableEarly)).length,
     fresh: countries.filter(c => !cards[c.key]).length,
     excluded: countries.filter(c => cards[c.key]?.excluded).length,
   });
@@ -156,6 +168,8 @@ function showFlagOptions(saved = '', evaluated = false) {
 }
 
 function showChallengeEditor(country, saved, evaluated) {
+  completion.hidden = true;
+  panel.classList.remove('learning-completed');
   current = country;
   challengeEvaluated = evaluated;
   panel.hidden = !country;
@@ -211,15 +225,49 @@ function wrongAnswer(revealOnly = false) {
   });
 }
 
+function showCompletion(now) {
+  const active = countries.map(c => deck()[c.key]).filter(c => c && !c.excluded);
+  completion.hidden = false;
+  panel.classList.add('learning-completed');
+  document.getElementById('completion-title').textContent = t('learningDone');
+  document.getElementById('completion-summary').textContent = t(active.length ? 'learningDoneHelp' : 'allEasy');
+  document.getElementById('completion-schedule').hidden = !active.length;
+  document.getElementById('completion-early').hidden = !active.length;
+  if (!active.length) return;
+  const restart = nextReviewTime(now);
+  const due = Math.min(...active.map(c => c.due));
+  const count = active.filter(c => c.due <= restart).length;
+  const date = document.getElementById('completion-date');
+  date.dateTime = new Date(due).toISOString();
+  document.getElementById('completion-day').textContent =
+    new Intl.DateTimeFormat(navigator.languages, { dateStyle: 'full' }).format(due);
+  document.getElementById('completion-time').textContent =
+    new Intl.DateTimeFormat(navigator.languages, { timeStyle: 'short' }).format(due);
+  document.getElementById('completion-count').textContent = t('scheduledReviews', {
+    count: new Intl.NumberFormat(navigator.languages).format(active.filter(c => c.due === due).length),
+  });
+  document.getElementById('completion-restart').textContent = t('dailyRestart', {
+    time: new Intl.DateTimeFormat(navigator.languages, { timeStyle: 'short' }).format(restart),
+  });
+  document.getElementById('completion-early-help').textContent = count ? t('earlyStartHelp', {
+    count: new Intl.NumberFormat(navigator.languages).format(count),
+  }) : t('noReviewsTomorrow');
+  startTomorrow.disabled = !count || invalidDecks.size > 0;
+  reviewTimer = setTimeout(advance, Math.max(restart - now, 1000));
+}
+
 function advance() {
   clearTimeout(reviewTimer);
+  const now = Date.now();
   const lastKey = current?.key;
-  const key = nextCard(order, deck(), turn, Date.now(), lastKey, countryDistance);
+  const key = nextCard(order, deck(), turn, now, lastKey, countryDistance);
   current = countries.find(c => c.key === key) || null;
   answered = false;
   panel.scrollTop = 0;
   feedback.replaceChildren();
   feedback.className = '';
+  completion.hidden = true;
+  panel.classList.remove('learning-completed');
   next.hidden = true;
   easy.hidden = true;
   easy.disabled = true;
@@ -235,19 +283,9 @@ function advance() {
   showCard(current, isLearning(), subject() === 'capitals');
   if (!current) {
     info.replaceChildren();
+    document.getElementById('card-prompt').hidden = true;
     document.getElementById('card-prompt').textContent = '';
-    feedback.textContent = t('learningDone');
-    if (isLearning()) {
-      const active = countries.map(c => deck()[c.key]).filter(c => c && !c.excluded);
-      if (!active.length) feedback.textContent = t('allEasy');
-      else {
-        const due = Math.min(...active.map(c => c.due));
-        const p = document.createElement('p');
-        p.textContent = t('nextReview', { date: new Date(due).toLocaleString(LANG) });
-        feedback.append(p);
-        reviewTimer = setTimeout(advance, Math.min(Math.max(due - Date.now(), 1000), 2147483647));
-      }
-    }
+    if (isLearning()) showCompletion(now);
     return;
   }
   showInfo();
@@ -370,6 +408,15 @@ answerForm.addEventListener('submit', event => {
   rate(valid ? 'correct' : 'wrong');
 });
 next.addEventListener('click', advance);
+startTomorrow.addEventListener('click', () => {
+  if (!isLearning() || current || startTomorrow.disabled) return;
+  startNextDay(deck());
+  saveProgress();
+  advance();
+});
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && isLearning() && !current && !menu.open) advance();
+});
 dontKnow.addEventListener('click', () => rate('wrong', null, true));
 clearAnswer.addEventListener('click', clearChallengeAnswer);
 clearFlag.addEventListener('click', clearChallengeAnswer);
