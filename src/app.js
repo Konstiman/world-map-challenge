@@ -3,7 +3,7 @@ import {
   init, localize, countries, isCorrect, showChallenge, showCard,
   saveChallengeAnswer, clearChallengeAnswer, countryDistance,
 } from './game.js';
-import { capitalIsCorrect, allCapitalsAreCorrect } from './answers.js';
+import { allCapitalsAreCorrect } from './answers.js';
 import { nextCard, review, validateProgress } from './learning.js';
 import { shuffled, flagChoices } from './flags.js';
 
@@ -255,7 +255,8 @@ function advance() {
   document.getElementById('card-prompt').textContent = t({
     countries: 'countryPrompt', capitals: 'capitalPrompt', flags: 'flagPrompt',
   }[subject()]);
-  guess.placeholder = t(subject() === 'countries' ? 'countryPrompt' : 'capitalPlaceholder');
+  guess.placeholder = t(subject() === 'countries' ? 'countryPrompt' :
+    current.capitals.length > 1 ? 'allCapitalsPlaceholder' : 'capitalPlaceholder');
   guess.setAttribute('aria-label', guess.placeholder);
   guess.value = '';
   for (const el of answerForm.elements) el.disabled = false;
@@ -365,7 +366,7 @@ answerForm.addEventListener('submit', event => {
     return;
   }
   const valid = subject() === 'countries' ? isCorrect(current, guess.value) :
-    capitalIsCorrect(current, guess.value, countries);
+    allCapitalsAreCorrect(current, guess.value, countries);
   rate(valid ? 'correct' : 'wrong');
 });
 next.addEventListener('click', advance);

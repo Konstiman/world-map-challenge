@@ -38,7 +38,7 @@ On mobile, the header's hamburger button opens **Main menu**, **How to play**, *
 
 Before evaluation, **Evaluate** appears next to the header's answer count once an answer has been saved. It also remains available in the header actions. **Start again** is in the header actions (the hamburger menu on mobile); use it to clear the current challenge's saved answers and start over.
 
-The capital challenge requires **all** listed capitals for countries with multiple capitals. Enter them in any order, separated by commas or spaces; localized aliases, missing accents and small typos are accepted. Multi-word names need no quotation marks.
+Both capital challenge and capital learning require **all** listed capitals for countries with multiple capitals. Enter them in any order, separated by spaces or punctuation; localized aliases, missing accents and small typos are accepted. Multi-word names need no quotation marks.
 
 Learning decks are independent and saved in this browser:
 
@@ -51,7 +51,7 @@ Learning decks are independent and saved in this browser:
 - **Too easy** appears only after a correct answer and excludes that card from the learning deck until **Reset learning** is used. Resetting one deck does not affect the others.
 - A completed deck shows its next review time. Returning later resumes the due cards. There is no account or cross-device synchronization.
 
-The interface, country names and capital names follow browser language preferences (English, German or Czech) by default. The language selector at the bottom of the main menu (CZ, EN, DE) overrides this preference and remembers it in this browser. Changing language reloads the game and returns to the main menu without clearing saved answers or learning progress. English names and localized aliases are accepted. Capital learning accepts any listed capital, while the capital challenge requires them all. Yaren represents Nauru's seat of government, as Nauru has no official capital. Greenland remains visible on the map but is excluded from all challenges and learning decks; the active modes cover 196 countries.
+The interface, country names and capital names follow browser language preferences (English, German or Czech) by default. The language selector at the bottom of the main menu (CZ, EN, DE) overrides this preference and remembers it in this browser. Changing language reloads the game and returns to the main menu without clearing saved answers or learning progress. English names and localized aliases are accepted. For countries with one capital, capital learning accepts that capital; for countries with multiple capitals, all are required in either capital mode. Yaren represents Nauru's seat of government, as Nauru has no official capital. Greenland remains visible on the map but is excluded from all challenges and learning decks; the active modes cover 196 countries.
 
 ## Tests
 

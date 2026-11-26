@@ -159,6 +159,9 @@ test('capital challenge accepts all capitals in any order with flexible separato
   assert.equal(allCapitalsAreCorrect(sriLanka, 'Kolombo Kotte', countries), true);
   const bolivia = countries.find(c => c.code === 'bo');
   assert.equal(allCapitalsAreCorrect(bolivia, 'La Paz, Sucre', countries), true);
+  for (const answer of ['Sucre; La Paz', 'La Paz | Sucre', 'Sucre + La Paz']) {
+    assert.equal(allCapitalsAreCorrect(bolivia, answer, countries), true, answer);
+  }
   const eswatini = countries.find(c => c.code === 'sz');
   assert.equal(allCapitalsAreCorrect(eswatini, 'Lobamba Mbabane', countries), true);
 });

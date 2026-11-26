@@ -45,7 +45,7 @@ export function capitalIsCorrect(country, guess, countries) {
 
 export function allCapitalsAreCorrect(country, guess, countries) {
   if (country.capitals.length === 1) return capitalIsCorrect(country, guess, countries);
-  const tokens = normalize(guess.replace(/[;/]/g, ' '))
+  const tokens = normalize(guess).replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .replace(/\b(and|und|a)\b/g, ' ').trim().split(/\s+/).filter(Boolean);
   if (!tokens.length) return false;
   const groups = country.capitalGroups.map(names => [...new Set(names.map(name => normalize(name).replace(/\s/g, '')))]);
